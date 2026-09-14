@@ -64,7 +64,14 @@ export type IconName =
   | "award"
   | "tag"
   | "trending"
-  | "users";
+  | "users"
+  // Table-cover calculator feature row.
+  | "ruler"
+  | "maximize"
+  | "gem"
+  | "droplet"
+  | "thermometer"
+  | "sparkles";
 
 export interface FeatureItem {
   id: string;
@@ -86,7 +93,10 @@ export const heroSlides: HeroSlide[] = [
     body: "Curated products for a better lifestyle. Quality, comfort and elegance — all in one place.",
     primary: { href: "/shop", label: "Shop now" },
     secondary: { href: "/category/home-living", label: "Explore collection" },
-    image: img("hz-hero-living", 1200, 900),
+    // Placeholder photography, supplied 2026-09-14 — swap for a real shoot
+    // before go-live (see the hosting note in next.config.ts).
+    image:
+      "https://www.morty.com/resources/wp-content/uploads/2020/02/spacejoy-YI2YkyaREHk-unsplash-scaled-e1695671185895.webp",
     imageAlt: "A styled living room corner with a ceramic vase and soft throw",
   },
   {
@@ -96,8 +106,9 @@ export const heroSlides: HeroSlide[] = [
     body: "Hard-wearing pieces that look better with use. Chosen to last, priced to be used.",
     primary: { href: "/category/home-living", label: "Shop home" },
     secondary: { href: "/shop", label: "Browse everything" },
-    image: img("hz-hero-kitchen", 1200, 900),
-    imageAlt: "Cast iron cookware resting on a warm stone kitchen counter",
+    image:
+      "https://www.theatrium.com.mt/content/images/home/homedecorimages/hero-refresh.jpg",
+    imageAlt: "A refreshed, sunlit home interior styled with warm decor",
   },
   {
     id: "small-upgrades",
@@ -106,8 +117,12 @@ export const heroSlides: HeroSlide[] = [
     body: "Clean formulations and honest labels, from daily skincare to the details that finish a routine.",
     primary: { href: "/category/beauty-care", label: "Shop beauty" },
     secondary: { href: "/category/health-wellness", label: "Wellness" },
-    image: img("hz-hero-beauty", 1200, 900),
-    imageAlt: "Amber glass skincare bottles arranged on a neutral surface",
+    // A Google Images cache thumbnail — low resolution (a few hundred px)
+    // and can expire or rotate without notice. Fine as a placeholder, not
+    // safe to leave in production; replace before go-live.
+    image:
+      "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTYpX2jkuAByFTErLLvxPdKAAcBaB5gYxPwV-bGz3UcuA&s=10",
+    imageAlt: "A softly lit lifestyle product arrangement",
   },
 ];
 
@@ -257,6 +272,7 @@ export const primaryNav = [
   { href: "/shop?sort=-createdAt", label: "New in" },
   { href: "/category/home-living", label: "Home & Living" },
   { href: "/category/beauty-care", label: "Beauty" },
+  { href: "/category/tableware-collection", label: "Tableware Collection" },
 ];
 
 export const footerNav = {

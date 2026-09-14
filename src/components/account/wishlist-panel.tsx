@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { getWishlist, removeFromWishlist } from "@/lib/api/wishlist";
@@ -60,6 +59,10 @@ export function WishlistPanel() {
   }, [hydrated, isAuthenticated, token, localIds]);
 
   useEffect(() => {
+    // `load` only calls setState after its own internal `await` calls —
+    // the standard fetch-on-mount pattern, not the synchronous-setState
+    // footgun this rule targets. It can't see across the async boundary.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
   }, [load]);
 

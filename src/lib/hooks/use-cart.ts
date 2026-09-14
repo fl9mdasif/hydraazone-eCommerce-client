@@ -66,6 +66,63 @@ export function useCart() {
     [addLine, openCart],
   );
 
+  /**
+   * For custom-size products (the table-cover calculator): builds a line
+   * keyed on a SYNTHETIC variant id (`${variant._id}:${length}x${width}`)
+   * so distinct sizes never merge with each other in the cart — the store's
+   * identity is `productId + variantId` and knows nothing about "size".
+   * `realVariantId` is kept alongside it so checkout can submit the true
+   * server variant id (`toOrderItems` in `stores/cart.ts` substitutes it
+   * back in).
+   *
+   * Deliberately NOT mirrored to the server cart: `POST /carts` expects a
+   * real variant ObjectId, and a synthetic string would not resolve there.
+   * The server cart is best-effort/display-only anyway — checkout always
+   * submits from local state (`toOrderItems`), so a custom line simply
+   * isn't visible if the customer inspects `GET /carts` directly, which is
+   * an acceptable gap given the server has no concept of this product type.
+   */
+  const addCustomItem = useCallback(
+    (params: {
+      product: Product;
+      variant: Variant;
+      /** Square inches for ONE cover at the chosen size. */
+      sqInPerCover: number;
+      covers: number;
+      /** e.g. `72" × 42" · 1.5mm` */
+      customLabel: string;
+    }) => {
+      const { product, variant, sqInPerCover, covers, customLabel } = params;
+      const quantity = sqInPerCover * covers;
+
+      const line: CartLine = {
+        productId: product._id,
+        // `customLabel` already encodes the exact size/thickness, so two
+        // different (length, width) pairs that happen to share an area
+        // (e.g. 72"x42" and 84"x36", both 3024 sq in) still get distinct
+        // keys — keying on `sqInPerCover` alone would collide them.
+        variantId: `${variant._id}:${customLabel}`,
+        realVariantId: variant._id,
+        quantity,
+        name: product.name,
+        slug: product.slug,
+        thumbnail: variant.images[0] || product.thumbnail,
+        variantName: variant.name,
+        // Per-square-inch rate — `price * quantity` (= sq in) is still the
+        // correct line total, exactly as the normal per-unit case.
+        price: effectivePrice(variant),
+        listPrice: variant.price,
+        stock: variant.stock,
+        customLabel,
+        sqInPerCover,
+      };
+
+      addLine(line);
+      openCart();
+    },
+    [addLine, openCart],
+  );
+
   const setQuantity = useCallback(
     (productId: string, variantId: string, quantity: number) => {
       setQuantityLocal(productId, variantId, quantity);
@@ -118,6 +175,7 @@ export function useCart() {
     count: hydrated ? cartCount(lines) : 0,
     subtotal: hydrated ? cartSubtotal(lines) : 0,
     addItem,
+    addCustomItem,
     setQuantity,
     removeItem,
     clear,

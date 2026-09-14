@@ -33,11 +33,10 @@ export function CountUp({
   const [display, setDisplay] = useState(value);
 
   useEffect(() => {
-    if (!animate) {
-      setDisplay(value);
-      return;
-    }
-    if (!inView) return;
+    // Reduced motion needs no RAF loop at all — `shown` below reads `value`
+    // directly in that case, so the effect has nothing to synchronise and
+    // exits without calling setState.
+    if (!animate || !inView) return;
 
     let frame = 0;
     const start = performance.now();
@@ -56,9 +55,11 @@ export function CountUp({
     return () => cancelAnimationFrame(frame);
   }, [animate, inView, value, durationMs]);
 
+  const shown = animate ? display : value;
+
   return (
     <span ref={ref} className={className}>
-      {format(display)}
+      {format(shown)}
     </span>
   );
 }

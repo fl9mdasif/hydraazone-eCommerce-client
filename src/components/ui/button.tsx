@@ -7,7 +7,8 @@ export type ButtonVariant =
   | "secondary"
   | "outline"
   | "ghost"
-  | "inverse";
+  | "inverse"
+  | "success-outline";
 export type ButtonSize = "sm" | "md" | "lg";
 
 const VARIANT: Record<ButtonVariant, string> = {
@@ -18,6 +19,11 @@ const VARIANT: Record<ButtonVariant, string> = {
   ghost: "text-ink bg-transparent hover:bg-muted",
   // For use on --bg-inverse surfaces (the dark promo card, the footer).
   inverse: "bg-surface text-ink hover:bg-muted",
+  // WhatsApp-style CTAs (e.g. the table-cover calculator's order button) —
+  // a distinct affordance from the rest of the site's near-black buttons,
+  // reserved for actions that leave the site to a known green-branded app.
+  "success-outline":
+    "border border-success text-success bg-transparent hover:bg-success-soft",
 };
 
 const SIZE: Record<ButtonSize, string> = {
@@ -107,14 +113,11 @@ export function Button(props: ButtonProps) {
     );
   }
 
-  const {
-    variant: _v,
-    size: _s,
-    className: _c,
-    children: _ch,
-    fullWidth: _f,
-    ...buttonProps
-  } = props as ButtonAsButton;
+  // Destructured only to exclude them from the native `<button>` spread
+  // below — passed as-is they'd render as invalid DOM attributes.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { variant: _v, size: _s, className: _c, children: _ch, fullWidth: _f, ...buttonProps } =
+    props as ButtonAsButton;
 
   return (
     <button type="button" className={classes} {...buttonProps}>

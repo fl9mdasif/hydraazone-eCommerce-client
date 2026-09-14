@@ -16,6 +16,13 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "i.ibb.co" },
       // Development seed imagery only. Remove once the real catalogue lands.
       { protocol: "https", hostname: "picsum.photos" },
+      // Hero placeholder photography (temporary — swap for real shoots).
+      { protocol: "https", hostname: "www.morty.com" },
+      { protocol: "https", hostname: "www.theatrium.com.mt" },
+      // A Google Images cache thumbnail — see the note by its use in
+      // content/home.ts. Fragile: Google can expire/rotate this URL without
+      // notice, and it serves at thumbnail resolution, not full size.
+      { protocol: "https", hostname: "encrypted-tbn0.gstatic.com" },
     ],
   },
 };

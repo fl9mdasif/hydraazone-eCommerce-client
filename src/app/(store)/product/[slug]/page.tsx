@@ -3,13 +3,25 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getActiveProduct, getProducts } from "@/lib/api/products";
 import { getProductReviewsSafe } from "@/lib/api/reviews";
+import { getPublicSettingsSafe } from "@/lib/api/settings";
 import { defaultVariant, effectivePrice, isInStock } from "@/lib/utils/product";
+import { ratePerSqFt } from "@/lib/utils/table-cover";
 import { Container, SectionHeading } from "@/components/ui/layout-primitives";
 import { ProductDetail } from "@/components/store/product-detail";
+import { TableCoverCalculator } from "@/components/store/table-cover-calculator";
 import { ProductReviews } from "@/components/store/product-reviews";
 import { ProductCard } from "@/components/store/product-card";
 import { Stagger, StaggerItem } from "@/components/motion/stagger";
 import { Reveal } from "@/components/motion/reveal";
+
+/**
+ * Products tagged `custom-size` (currently just the Transparent Table
+ * Cover) price by customer-entered area rather than a fixed variant list —
+ * see `components/store/table-cover-calculator.tsx` and
+ * `lib/utils/table-cover.ts` for the full explanation of how that reaches
+ * the server unmodified.
+ */
+const CUSTOM_SIZE_TAG = "custom-size";
 
 export const revalidate = 300;
 
@@ -52,11 +64,16 @@ export default async function ProductPage(props: PageProps<"/product/[slug]">) {
   const product = await getActiveProduct(slug);
   if (!product) notFound();
 
-  const [{ reviews }, related] = await Promise.all([
+  const isCustomSize = product.tags.includes(CUSTOM_SIZE_TAG);
+
+  const [{ reviews }, related, settings] = await Promise.all([
     getProductReviewsSafe(product._id, { limit: 10 }),
     product.category
       ? getProducts({ category: product.category._id, limit: 6 }).catch(() => null)
       : Promise.resolve(null),
+    // Only the calculator needs this (for the WhatsApp order button), but
+    // it's cheap and cached — simpler than branching the fetch itself.
+    getPublicSettingsSafe(),
   ]);
 
   const relatedProducts =
@@ -65,7 +82,19 @@ export default async function ProductPage(props: PageProps<"/product/[slug]">) {
 
   const variant = defaultVariant(product);
 
-  /* Product JSON-LD. Price comes from the variant, never the product. */
+  /*
+   * Product JSON-LD. For a normal product, price comes straight from the
+   * variant. A custom-size variant's `price` is a per-square-inch rate
+   * (e.g. 0.76) which is meaningless as an advertised price — use the
+   * human-readable per-square-foot rate instead, a real number a shopper
+   * would recognise as "starting from".
+   */
+  const jsonLdPrice = isCustomSize
+    ? (variant ? ratePerSqFt(variant) : null) ?? 0
+    : variant
+      ? effectivePrice(variant)
+      : 0;
+
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Product",
@@ -87,7 +116,7 @@ export default async function ProductPage(props: PageProps<"/product/[slug]">) {
       "@type": "Offer",
       url: `${SITE_URL}/product/${product.slug}`,
       priceCurrency: "BDT",
-      price: variant ? effectivePrice(variant) : 0,
+      price: jsonLdPrice,
       availability: isInStock(product)
         ? "https://schema.org/InStock"
         : "https://schema.org/OutOfStock",
@@ -134,7 +163,14 @@ export default async function ProductPage(props: PageProps<"/product/[slug]">) {
           </ol>
         </nav>
 
-        <ProductDetail product={product} />
+        {isCustomSize ? (
+          <TableCoverCalculator
+            product={product}
+            whatsappNumber={settings.whatsappNumber}
+          />
+        ) : (
+          <ProductDetail product={product} />
+        )}
 
         <section className="flex flex-col gap-5">
           <Reveal>

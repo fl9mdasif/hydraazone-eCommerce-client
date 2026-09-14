@@ -31,6 +31,27 @@ export interface CartLine {
   listPrice: number;
   /** Stock as last seen, used to bound the quantity stepper. */
   stock: number;
+
+  /* ---- custom-size lines only (e.g. the table-cover calculator) ---- */
+  /**
+   * Present when `variantId` is a synthetic id (`${realVariantId}:${size}`)
+   * rather than a real server variant id — required so two different
+   * custom sizes of the same variant become distinct cart lines instead of
+   * merging (the cart's identity is `productId + variantId`). `toOrderItems`
+   * substitutes this back in so the server sees a real ObjectId.
+   */
+  realVariantId?: string;
+  /** Shown instead of `variantName` in the drawer/cart, e.g. `72" × 42" · 1.5mm`. */
+  customLabel?: string;
+  /**
+   * How many square inches correspond to ONE cover, so the cart's quantity
+   * stepper can step by whole covers (re-deriving `quantity` = sq inches)
+   * instead of incrementing raw square inches by one, which would be
+   * meaningless. `quantity` itself is always the true square-inch total
+   * charged — `price` here is the per-square-inch rate, so
+   * `price * quantity` still equals the correct line total unmodified.
+   */
+  sqInPerCover?: number;
 }
 
 export function lineKey(line: Pick<CartLine, "productId" | "variantId">) {
@@ -139,11 +160,48 @@ export function estimateShipping(
   return subtotal >= freeShippingThreshold ? 0 : shippingRate;
 }
 
-/** The exact `items` payload `POST /orders` expects. */
+/**
+ * The exact `items` payload `POST /orders` expects.
+ *
+ * Custom-size lines carry a synthetic `variantId` (so distinct sizes don't
+ * merge in the cart) — `realVariantId` substitutes the true server id back
+ * in here, so the server always sees a real ObjectId.
+ */
 export function toOrderItems(lines: CartLine[]) {
   return lines.map((line) => ({
     productId: line.productId,
-    variantId: line.variantId,
+    variantId: line.realVariantId ?? line.variantId,
     quantity: line.quantity,
   }));
+}
+
+/**
+ * The `quantity` to pass to `setQuantity` for a +/- click on this line.
+ *
+ * A custom-size line's `quantity` is total square inches, not a count a
+ * customer should ever see incremented by 1 — that would silently change
+ * what they're paying for without changing the size shown. So the step is
+ * one whole cover (`sqInPerCover`) instead of one raw unit. Reaching 0
+ * covers returns 0, which `setQuantity` already treats as "remove this line".
+ */
+export function stepQuantity(line: CartLine, direction: 1 | -1): number {
+  if (!line.sqInPerCover) return line.quantity + direction;
+
+  const covers = Math.max(1, Math.round(line.quantity / line.sqInPerCover));
+  const nextCovers = Math.max(0, covers + direction);
+  return nextCovers * line.sqInPerCover;
+}
+
+/** Human-readable size summary for lines that carry one, for the order note. */
+export function customLineNotes(lines: CartLine[]): string[] {
+  return lines
+    .filter((line): line is CartLine & { customLabel: string } =>
+      Boolean(line.customLabel),
+    )
+    .map((line) => {
+      const covers = line.sqInPerCover
+        ? Math.round(line.quantity / line.sqInPerCover)
+        : 1;
+      return `${line.name} — ${line.customLabel} (Qty ${covers})`;
+    });
 }

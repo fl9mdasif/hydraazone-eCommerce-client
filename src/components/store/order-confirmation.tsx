@@ -33,12 +33,13 @@ export function OrderConfirmation({ orderId }: { orderId: string }) {
   const [order, setOrder] = useState<Order | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Derived at render time rather than set from the effect below — the
+  // "no session" case isn't something to fetch or synchronise, it's just a
+  // fact already known from `useSession()`.
+  const notSignedIn = hydrated && !token;
+
   useEffect(() => {
-    if (!hydrated) return;
-    if (!token) {
-      setError("Please sign in to view this order.");
-      return;
-    }
+    if (!hydrated || !token) return;
 
     let cancelled = false;
     getOrder(token, orderId)
@@ -58,6 +59,15 @@ export function OrderConfirmation({ orderId }: { orderId: string }) {
       cancelled = true;
     };
   }, [token, orderId, hydrated]);
+
+  if (notSignedIn) {
+    return (
+      <div className="flex flex-col items-center gap-4 py-10 text-center">
+        <FormError message="Please sign in to view this order." />
+        <Button href="/login">Sign in</Button>
+      </div>
+    );
+  }
 
   if (error) {
     return (
@@ -143,6 +153,18 @@ export function OrderConfirmation({ orderId }: { orderId: string }) {
               </li>
             ))}
           </ul>
+
+          {order.note ? (
+            // Custom-size items (e.g. the table-cover calculator) have no
+            // structured field for dimensions server-side — this is where
+            // the real length/width/thickness the customer entered surfaces,
+            // since the item row above can only show the server's own
+            // variant name and square-inch quantity.
+            <p className="mt-4 rounded-md bg-muted px-3.5 py-2.5 text-sm text-ink-secondary">
+              <span className="font-medium text-ink">Note: </span>
+              {order.note}
+            </p>
+          ) : null}
 
           <dl className="mt-4 flex flex-col gap-2 border-t border-line pt-4 text-sm">
             <div className="flex justify-between">

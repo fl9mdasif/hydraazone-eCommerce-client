@@ -1,8 +1,14 @@
 import {
   Award,
+  Droplet,
+  Gem,
   Headset,
+  Maximize2,
   RefreshCw,
+  Ruler,
+  Sparkles,
   Tag,
+  Thermometer,
   TrendingUp,
   Truck,
   Users,
@@ -24,6 +30,12 @@ const ICONS: Record<IconName, LucideIcon> = {
   tag: Tag,
   trending: TrendingUp,
   users: Users,
+  ruler: Ruler,
+  maximize: Maximize2,
+  gem: Gem,
+  droplet: Droplet,
+  thermometer: Thermometer,
+  sparkles: Sparkles,
 };
 
 export function Icon({

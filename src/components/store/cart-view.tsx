@@ -4,7 +4,7 @@ import Link from "next/link";
 import { m, AnimatePresence } from "framer-motion";
 import { Minus, Plus, Trash2 } from "lucide-react";
 import { useCart } from "@/lib/hooks/use-cart";
-import { estimateShipping, lineKey } from "@/stores/cart";
+import { estimateShipping, lineKey, stepQuantity } from "@/stores/cart";
 import { formatCurrency } from "@/lib/utils/format";
 import { SmartImage } from "@/components/ui/smart-image";
 import { Button } from "@/components/ui/button";
@@ -82,8 +82,18 @@ export function CartView({
                   >
                     {line.name}
                   </Link>
-                  <p className="text-xs text-ink-secondary">{line.variantName}</p>
-                  <p className="text-sm text-ink">{formatCurrency(line.price)}</p>
+                  <p className="text-xs text-ink-secondary">
+                    {line.customLabel ?? line.variantName}
+                  </p>
+                  <p className="text-sm text-ink">
+                    {/* A custom line's `price` is a per-sq-inch rate, not a
+                        useful unit price to display — show the per-cover
+                        price instead, the same role this figure plays for
+                        a normal product. */}
+                    {formatCurrency(
+                      line.sqInPerCover ? line.price * line.sqInPerCover : line.price,
+                    )}
+                  </p>
 
                   <div className="mt-auto flex items-center gap-3 pt-2">
                     <div className="flex items-center rounded-full border border-line">
@@ -93,14 +103,16 @@ export function CartView({
                           setQuantity(
                             line.productId,
                             line.variantId,
-                            line.quantity - 1,
+                            stepQuantity(line, -1),
                           )
                         }
                       >
                         <Minus aria-hidden className="size-3.5" />
                       </StepButton>
                       <span className="w-8 text-center text-sm tabular-nums text-ink">
-                        {line.quantity}
+                        {line.sqInPerCover
+                          ? Math.round(line.quantity / line.sqInPerCover)
+                          : line.quantity}
                       </span>
                       <StepButton
                         label="Increase quantity"
@@ -109,7 +121,7 @@ export function CartView({
                           setQuantity(
                             line.productId,
                             line.variantId,
-                            line.quantity + 1,
+                            stepQuantity(line, 1),
                           )
                         }
                       >

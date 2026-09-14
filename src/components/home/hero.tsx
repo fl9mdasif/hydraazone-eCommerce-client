@@ -1,8 +1,8 @@
 "use client";
 
-import { m } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { HeroSlide } from "@/content/home";
 import { Button } from "@/components/ui/button";
 import { SmartImage } from "@/components/ui/smart-image";
@@ -16,6 +16,11 @@ const AUTOPLAY_MS = 7000;
 /**
  * The hero carousel.
  *
+ * One column, not a 50/50 split: the photo bleeds across the full panel and
+ * the copy sits on top of it at the left, held legible by a scrim that fades
+ * from the page background into transparency — the same technique used on
+ * the featured-collection cards, so the two read as one system.
+ *
  * Three constraints from AGENTS.md section 5 shape this:
  *  - The LCP image must not be delayed. Slide 0's image is `priority` and
  *    starts fully opaque; only *subsequent* slides cross-fade.
@@ -28,7 +33,6 @@ export function Hero({ slides }: { slides: HeroSlide[] }) {
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
   const { animate } = useMotionPreference();
-  const hasMounted = useRef(false);
 
   const count = slides.length;
 
@@ -38,10 +42,6 @@ export function Hero({ slides }: { slides: HeroSlide[] }) {
   );
   const next = useCallback(() => goTo(index + 1), [goTo, index]);
   const previous = useCallback(() => goTo(index - 1), [goTo, index]);
-
-  useEffect(() => {
-    hasMounted.current = true;
-  }, []);
 
   useEffect(() => {
     if (!animate || paused || count < 2) return;
@@ -63,88 +63,100 @@ export function Hero({ slides }: { slides: HeroSlide[] }) {
       onFocusCapture={() => setPaused(true)}
       onBlurCapture={() => setPaused(false)}
     >
-      <div className="grid min-h-[26rem] grid-cols-1 md:min-h-[30rem] md:grid-cols-2">
+      <div className="relative min-h-[28rem] sm:min-h-[32rem] lg:min-h-[36rem]">
+        {/* ------------------------------------------------ full-bleed image */}
+        {slides.map((slide, slideIndex) => {
+          const isActive = slideIndex === index;
+          const isFirst = slideIndex === 0;
+
+          return (
+            <m.div
+              key={slide.id}
+              className="absolute inset-0"
+              // The first slide is the LCP element: it starts visible and
+              // is never faded in.
+              initial={false}
+              animate={{
+                opacity: isActive ? 1 : 0,
+                scale: animate && isActive ? 1 : 1.03,
+              }}
+              transition={
+                animate
+                  ? { duration: DURATION.slow, ease: EASE_OUT }
+                  : { duration: 0 }
+              }
+              aria-hidden={!isActive}
+            >
+              <SmartImage
+                src={slide.image}
+                alt={isActive ? slide.imageAlt : ""}
+                priority={isFirst}
+                sizes="100vw"
+              />
+            </m.div>
+          );
+        })}
+
+        {/*
+          Scrim: opaque behind the text, fully clear by ~70% width so the
+          photo itself stays visible on the right, matching the reference.
+          Stop positions (not just colours) keep the fade tight instead of
+          washing out the whole image.
+        */}
+        <div
+          aria-hidden
+          className="absolute inset-0 bg-gradient-to-r from-[var(--bg-base)] from-0% via-[var(--bg-base)]/70 via-40% to-transparent to-70%"
+        />
+
         {/* ------------------------------------------------------- copy */}
-        <div className="relative z-10 flex flex-col justify-center gap-5 px-6 py-10 sm:px-10 md:py-14 lg:px-14">
+        <div className="relative z-10 flex h-full max-w-xl flex-col justify-center gap-5 px-6 py-10 sm:px-10 sm:py-14 lg:px-14">
           {/*
-            `key` restarts the entrance on each slide change so the copy
-            re-enters rather than swapping silently.
+            `AnimatePresence initial={false}` is Framer's own mechanism for
+            "don't animate what's present on first mount, but animate every
+            later key change" — replaces a hand-rolled mounted-ref check,
+            which read `.current` during render (not allowed: refs are for
+            effects/handlers, not render output).
           */}
-          <m.div
-            key={active.id}
-            className="flex flex-col gap-5"
-            initial={
-              animate && hasMounted.current ? { opacity: 0, y: 12 } : false
-            }
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: DURATION.base, ease: EASE_OUT }}
-          >
-            <p className="text-xs font-medium uppercase tracking-[0.18em] text-ink-secondary">
-              {active.eyebrow}
-            </p>
+          <AnimatePresence mode="wait" initial={false}>
+            <m.div
+              key={active.id}
+              className="flex flex-col gap-5"
+              initial={animate ? { opacity: 0, y: 12 } : false}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: DURATION.base, ease: EASE_OUT }}
+            >
+              <p className="text-xs font-medium uppercase tracking-[0.18em] text-ink-secondary">
+                {active.eyebrow}
+              </p>
 
-            <h1 className="font-display text-4xl font-medium leading-[1.05] tracking-tight text-ink sm:text-5xl lg:text-6xl">
-              {active.headline.split("\n").map((line) => (
-                <span key={line} className="block">
-                  {line}
-                </span>
-              ))}
-            </h1>
+              <h1 className="font-display text-4xl font-medium leading-[1.05] tracking-tight text-ink sm:text-5xl lg:text-6xl">
+                {active.headline.split("\n").map((line) => (
+                  <span key={line} className="block">
+                    {line}
+                  </span>
+                ))}
+              </h1>
 
-            <p className="max-w-md text-sm leading-relaxed text-ink-secondary sm:text-base">
-              {active.body}
-            </p>
+              <p className="max-w-md text-sm leading-relaxed text-ink-secondary sm:text-base">
+                {active.body}
+              </p>
 
-            <div className="mt-1 flex flex-wrap items-center gap-3">
-              <Magnetic>
-                <Button href={active.primary.href} size="lg">
-                  {active.primary.label}
-                  <ArrowRight aria-hidden className="size-4" />
-                </Button>
-              </Magnetic>
+              <div className="mt-1 flex flex-wrap items-center gap-3">
+                <Magnetic>
+                  <Button href={active.primary.href} size="lg">
+                    {active.primary.label}
+                    <ArrowRight aria-hidden className="size-4" />
+                  </Button>
+                </Magnetic>
 
-              {active.secondary ? (
-                <Button href={active.secondary.href} variant="outline" size="lg">
-                  {active.secondary.label}
-                </Button>
-              ) : null}
-            </div>
-          </m.div>
-        </div>
-
-        {/* ------------------------------------------------------ image */}
-        <div className="relative min-h-[16rem] md:min-h-full">
-          {slides.map((slide, slideIndex) => {
-            const isActive = slideIndex === index;
-            const isFirst = slideIndex === 0;
-
-            return (
-              <m.div
-                key={slide.id}
-                className="absolute inset-0"
-                // The first slide is the LCP element: it starts visible and
-                // is never faded in.
-                initial={false}
-                animate={{
-                  opacity: isActive ? 1 : 0,
-                  scale: animate && isActive ? 1 : 1.03,
-                }}
-                transition={
-                  animate
-                    ? { duration: DURATION.slow, ease: EASE_OUT }
-                    : { duration: 0 }
-                }
-                aria-hidden={!isActive}
-              >
-                <SmartImage
-                  src={slide.image}
-                  alt={isActive ? slide.imageAlt : ""}
-                  priority={isFirst}
-                  sizes="(max-width: 768px) 100vw, 50vw"
-                />
-              </m.div>
-            );
-          })}
+                {active.secondary ? (
+                  <Button href={active.secondary.href} variant="outline" size="lg">
+                    {active.secondary.label}
+                  </Button>
+                ) : null}
+              </div>
+            </m.div>
+          </AnimatePresence>
         </div>
       </div>
 

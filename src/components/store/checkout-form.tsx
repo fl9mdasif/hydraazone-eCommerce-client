@@ -10,7 +10,7 @@ import { placeOrder } from "@/lib/api/orders";
 import { ApiError } from "@/lib/api/client";
 import { useCart } from "@/lib/hooks/use-cart";
 import { useSession } from "@/lib/hooks/use-session";
-import { estimateShipping, toOrderItems } from "@/stores/cart";
+import { customLineNotes, estimateShipping, toOrderItems } from "@/stores/cart";
 import { formatCurrency } from "@/lib/utils/format";
 import { Button } from "@/components/ui/button";
 import { Field, FormError, TextArea, TextInput } from "@/components/ui/field";
@@ -156,6 +156,18 @@ export function CheckoutForm({
 
       if (!activeToken) throw new Error("No session token after checkout");
 
+      // Custom-size lines (e.g. the table-cover calculator) have no
+      // structured place to store dimensions server-side — the order-level
+      // note is the only carrier, so a generated summary is prepended
+      // ahead of whatever the customer typed themselves.
+      const sizeNotes = customLineNotes(lines);
+      const fullNote = [
+        sizeNotes.length > 0 ? `Custom sizes: ${sizeNotes.join("; ")}` : null,
+        note.trim() || null,
+      ]
+        .filter(Boolean)
+        .join(" — ");
+
       const order = await placeOrder(activeToken, {
         items: toOrderItems(lines),
         shippingAddress: {
@@ -168,7 +180,7 @@ export function CheckoutForm({
           country: "Bangladesh",
         },
         paymentMethod: "cod",
-        note: note.trim() || undefined,
+        note: fullNote || undefined,
       });
 
       // The server clears the cart itself; mirror that locally.
@@ -394,7 +406,8 @@ export function CheckoutForm({
               <span className="flex min-w-0 flex-1 flex-col">
                 <span className="truncate text-sm text-ink">{line.name}</span>
                 <span className="text-xs text-ink-secondary">
-                  {line.variantName} · {line.quantity}
+                  {line.customLabel ??
+                    `${line.variantName} · ${line.quantity}`}
                 </span>
               </span>
               <span className="text-sm text-ink">

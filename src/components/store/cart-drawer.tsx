@@ -5,7 +5,7 @@ import { m, AnimatePresence } from "framer-motion";
 import { Minus, Plus, ShoppingBag, Trash2, X } from "lucide-react";
 import { useEffect } from "react";
 import { useCart } from "@/lib/hooks/use-cart";
-import { estimateShipping, lineKey } from "@/stores/cart";
+import { estimateShipping, lineKey, stepQuantity } from "@/stores/cart";
 import { useUiStore } from "@/stores/ui";
 import { formatCurrency } from "@/lib/utils/format";
 import { SmartImage } from "@/components/ui/smart-image";
@@ -184,7 +184,7 @@ export function CartDrawer({
                                 {line.name}
                               </Link>
                               <p className="text-xs text-ink-secondary">
-                                {line.variantName}
+                                {line.customLabel ?? line.variantName}
                               </p>
                               <p className="text-sm text-ink">
                                 {formatCurrency(line.price * line.quantity)}
@@ -198,14 +198,17 @@ export function CartDrawer({
                                       setQuantity(
                                         line.productId,
                                         line.variantId,
-                                        line.quantity - 1,
+                                        stepQuantity(line, -1),
                                       )
                                     }
                                   >
                                     <Minus aria-hidden className="size-3.5" />
                                   </StepButton>
                                   <span className="w-7 text-center text-xs tabular-nums text-ink">
-                                    {line.quantity}
+                                    {/* Custom lines show covers, not raw square inches. */}
+                                    {line.sqInPerCover
+                                      ? Math.round(line.quantity / line.sqInPerCover)
+                                      : line.quantity}
                                   </span>
                                   <StepButton
                                     label="Increase quantity"
@@ -214,7 +217,7 @@ export function CartDrawer({
                                       setQuantity(
                                         line.productId,
                                         line.variantId,
-                                        line.quantity + 1,
+                                        stepQuantity(line, 1),
                                       )
                                     }
                                   >

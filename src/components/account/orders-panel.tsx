@@ -45,6 +45,11 @@ export function OrdersPanel() {
   }, [token, signOut]);
 
   useEffect(() => {
+    // `load` only calls setState after its own internal `await` — this is
+    // the standard fetch-on-mount pattern React's own docs endorse, not the
+    // synchronous-setState-in-effect footgun this rule targets. The rule's
+    // static analysis can't see across the async boundary.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
   }, [load]);
 
@@ -157,6 +162,16 @@ export function OrdersPanel() {
                 </li>
               ))}
             </ul>
+
+            {order.note ? (
+              // Custom-size items (e.g. the table-cover calculator) have no
+              // structured dimensions field server-side — this note is where
+              // the real length/width the customer entered surfaces.
+              <p className="mb-4 rounded-md bg-muted px-3.5 py-2.5 text-xs text-ink-secondary">
+                <span className="font-medium text-ink">Note: </span>
+                {order.note}
+              </p>
+            ) : null}
 
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
               <p className="text-sm">
