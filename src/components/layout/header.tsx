@@ -3,23 +3,15 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { m, AnimatePresence } from "framer-motion";
-import {
-  ChevronDown,
-  Heart,
-  Menu,
-  Search,
-  ShoppingBag,
-  User,
-  X,
-} from "lucide-react";
+import { ChevronDown, Heart, Menu, Search, ShoppingBag, X } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 import type { Category } from "@/lib/api/schemas/category";
 import { primaryNav } from "@/content/home";
 import { cartCount, useCartStore } from "@/stores/cart";
 import { useWishlistStore } from "@/stores/wishlist";
-import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import { Container } from "@/components/ui/layout-primitives";
+import { AccountMenu } from "@/components/layout/account-menu";
 import { DURATION, EASE_OUT, SPRING } from "@/components/motion/tokens";
 import { useMotionPreference } from "@/components/motion/use-motion-preference";
 import { cn } from "@/lib/utils/cn";
@@ -45,7 +37,6 @@ export function Header({ categories }: { categories: Category[] }) {
   const cartHydrated = useCartStore((state) => state.hydrated);
   const wishlistIds = useWishlistStore((state) => state.productIds);
   const wishlistHydrated = useWishlistStore((state) => state.hydrated);
-  const user = useAuthStore((state) => state.user);
 
   const mobileNavOpen = useUiStore((state) => state.mobileNavOpen);
   const toggleMobileNav = useUiStore((state) => state.toggleMobileNav);
@@ -195,13 +186,7 @@ export function Header({ categories }: { categories: Category[] }) {
 
           {/* ---------------------------------------------------- actions */}
           <div className="ml-auto flex items-center gap-1 md:ml-0">
-            <Link
-              href={user ? "/account" : "/login"}
-              className="hidden size-10 place-items-center rounded-full text-ink transition-colors hover:bg-muted sm:grid"
-              aria-label={user ? "Your account" : "Log in"}
-            >
-              <User aria-hidden strokeWidth={1.5} className="size-5" />
-            </Link>
+            <AccountMenu />
 
             <Link
               href="/account/wishlist"

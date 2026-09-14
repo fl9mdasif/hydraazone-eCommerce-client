@@ -135,7 +135,11 @@ function buildUrl(path: string, query?: Record<string, QueryValue>): string {
     );
   }
 
-  const base = BASE_URL.replace(/\/+$/, "");
+  // Accept either form of NEXT_PUBLIC_API_URL — with or without the
+  // `/api/v1` suffix, and with or without a trailing slash — so the env var
+  // can be written the way it reads in a browser without producing
+  // `/api/v1/api/v1/...`.
+  const base = BASE_URL.replace(/\/+$/, "").replace(/\/api\/v1$/, "");
   const suffix = path.startsWith("/") ? path : `/${path}`;
   const url = new URL(`${base}/api/v1${suffix}`);
 

@@ -54,6 +54,8 @@ type ButtonAsLink = CommonProps & {
   /** Set for links that leave the site (WhatsApp, Messenger). */
   external?: boolean;
   "aria-label"?: string;
+  /** e.g. closing the cart drawer as the customer navigates away from it. */
+  onClick?: () => void;
 };
 
 export type ButtonProps = ButtonAsButton | ButtonAsLink;
@@ -76,7 +78,7 @@ export function Button(props: ButtonProps) {
   );
 
   if ("href" in props && props.href !== undefined) {
-    const { href, external, ...rest } = props;
+    const { href, external, onClick, ...rest } = props;
 
     if (external) {
       return (
@@ -86,6 +88,7 @@ export function Button(props: ButtonProps) {
           target="_blank"
           rel="noopener noreferrer"
           aria-label={rest["aria-label"]}
+          onClick={onClick}
         >
           {children}
         </a>
@@ -93,7 +96,12 @@ export function Button(props: ButtonProps) {
     }
 
     return (
-      <Link href={href} className={classes} aria-label={rest["aria-label"]}>
+      <Link
+        href={href}
+        className={classes}
+        aria-label={rest["aria-label"]}
+        onClick={onClick}
+      >
         {children}
       </Link>
     );

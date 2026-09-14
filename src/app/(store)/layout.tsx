@@ -4,6 +4,7 @@ import { resolveShipping } from "@/lib/api/schemas/settings";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
 import { FloatingContact } from "@/components/layout/floating-contact";
+import { CartDrawer } from "@/components/store/cart-drawer";
 
 /**
  * Shell for every public storefront route.
@@ -20,13 +21,18 @@ export default async function StoreLayout({
     getPublicSettingsSafe(),
   ]);
 
-  const { freeShippingThreshold } = resolveShipping(settings);
+  const { shippingRate, freeShippingThreshold } = resolveShipping(settings);
 
   return (
     <>
       <Header categories={categories} />
 
       <main className="flex-1">{children}</main>
+
+      <CartDrawer
+        shippingRate={shippingRate}
+        freeShippingThreshold={freeShippingThreshold}
+      />
 
       <Footer
         categories={categories}
