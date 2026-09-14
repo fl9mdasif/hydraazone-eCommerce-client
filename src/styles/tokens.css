@@ -1,0 +1,74 @@
+/*
+ * HydraaZone design tokens.
+ *
+ * This is the ONLY place a colour, radius, shadow, duration or easing is
+ * defined. Components consume these through the Tailwind theme mapping in
+ * `src/app/globals.css` and never contain a raw hex or magic pixel value.
+ * When the final brand direction lands, only this file changes.
+ *
+ * Light theme only for now. The names are structured so a dark block can be
+ * added here later without touching a single component.
+ */
+
+:root {
+  /* ---------------------------------------------------------------- surfaces */
+  --bg-base: #faf9f7; /* warm off-white page background */
+  --bg-surface: #ffffff; /* cards, sheets, dropdowns */
+  --bg-muted: #f1eee9; /* tiles, category circles, inputs */
+  --bg-subtle: #f7f5f2; /* section banding against --bg-base */
+  --bg-inverse: #1c1b19; /* dark promo card, footer */
+
+  /* -------------------------------------------------------------------- text */
+  --fg-primary: #1c1b19;
+  --fg-secondary: #6b6560;
+  --fg-muted: #9a938c;
+  --fg-inverse: #faf9f7;
+  --fg-on-accent: #faf9f7;
+
+  /* ------------------------------------------------------------------- lines */
+  --line-subtle: #e7e2db;
+  --line-strong: #d6cfc5;
+
+  /* ------------------------------------------------------------------ accent */
+  --accent: #1c1b19; /* primary CTA is near-black in the design */
+  --accent-hover: #333130;
+  --accent-warm: #b8a188; /* taupe: rating stars, badges, active states */
+  --accent-warm-soft: #ede5db;
+
+  /* ------------------------------------------------------------------ status */
+  --success: #2f6f4e;
+  --success-soft: #e6f1ea;
+  --danger: #a8362b;
+  --danger-soft: #f7e8e6;
+  --warning: #9a6b16;
+  --warning-soft: #f8efdc;
+
+  /* ------------------------------------------------------------------ radius */
+  --r-sm: 0.375rem; /* 6px  */
+  --r-md: 0.625rem; /* 10px */
+  --r-lg: 1rem; /* 16px */
+  --r-xl: 1.5rem; /* 24px */
+  --r-full: 999px;
+
+  /* ----------------------------------------------------------------- shadows */
+  --shadow-card: 0 1px 2px rgb(28 27 25 / 0.04), 0 1px 3px rgb(28 27 25 / 0.06);
+  --shadow-lift: 0 8px 24px rgb(28 27 25 / 0.08), 0 2px 6px rgb(28 27 25 / 0.04);
+  --shadow-overlay: 0 16px 48px rgb(28 27 25 / 0.16);
+
+  /* ------------------------------------------------------------------ motion */
+  /* See client/AGENTS.md section 5. Every animation references these. */
+  --dur-instant: 120ms;
+  --dur-fast: 200ms;
+  --dur-base: 320ms;
+  --dur-slow: 520ms;
+
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+
+  /* Card / tile hover lift. Transform only, never a layout property. */
+  --lift: -4px;
+
+  /* ------------------------------------------------------------------ layout */
+  --container-max: 80rem; /* 1280px */
+  --header-h: 4.5rem;
+}
