@@ -15,6 +15,78 @@ import { useUiStore } from "@/stores/ui";
 import * as cartApi from "@/lib/api/cart";
 
 /**
+ * Merges the local guest cart into the server cart on login, then treats
+ * the server as the source of truth — the behaviour `stores/cart.ts` has
+ * documented as a Phase 4 requirement since it was written.
+ *
+ * Called from `useSession()`'s `setSession`, so it fires after every login,
+ * registration, and successful guest checkout — anywhere a token is first
+ * obtained. Fire-and-forget: never awaited by its caller, so it can't delay
+ * a login redirect or a checkout submission.
+ *
+ * Custom-size lines (the table-cover calculator) are excluded from the
+ * server push — they carry a synthetic variant id that doesn't exist
+ * server-side (see `addCustomItem` below) — and are carried over untouched
+ * alongside whatever the server returns for normal lines.
+ */
+export async function mergeGuestCartToServer(token: string): Promise<void> {
+  const localLines = useCartStore.getState().lines;
+  const normalLines = localLines.filter((line) => !line.customLabel);
+  const customLines = localLines.filter((line) => line.customLabel);
+
+  if (normalLines.length === 0) return;
+
+  // Sequential, not Promise.all — every push hits the same cart document,
+  // and the server has no transactional guard against concurrent additive
+  // writes racing each other.
+  for (const line of normalLines) {
+    try {
+      await cartApi.addToCart(token, {
+        productId: line.productId,
+        variantId: line.variantId,
+        quantity: line.quantity,
+      });
+    } catch (error) {
+      console.error("[cart] merge push failed for a line:", error);
+    }
+  }
+
+  try {
+    const serverCart = await cartApi.getCart(token);
+
+    const mergedLines: CartLine[] = serverCart.items.flatMap((item) => {
+      const product = item.product;
+      if (!product) return [];
+
+      const variant = product.variants.find(
+        (candidate) => candidate._id === item.variantId,
+      );
+      if (!variant) return [];
+
+      const line: CartLine = {
+        productId: product._id,
+        variantId: item.variantId,
+        quantity: item.quantity,
+        name: product.name,
+        slug: product.slug,
+        thumbnail: variant.images[0] || product.thumbnail,
+        variantName: variant.name,
+        price: effectivePrice(variant),
+        listPrice: variant.price,
+        stock: variant.stock,
+      };
+      return [line];
+    });
+
+    useCartStore.getState().replaceAll([...mergedLines, ...customLines]);
+  } catch (error) {
+    // The pushes above still landed server-side even if this re-fetch
+    // failed — the local cart just stays as it was until the next sync.
+    console.error("[cart] merge re-fetch failed:", error);
+  }
+}
+
+/**
  * Add/update/remove, for guests and logged-in customers alike.
  *
  * The local store is always the source of truth for what the UI shows, so

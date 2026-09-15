@@ -1,3 +1,4 @@
+import { z } from "zod";
 import {
   categoryListSchema,
   categorySchema,
@@ -76,4 +77,66 @@ export async function getActiveCategory(
   } catch {
     return null;
   }
+}
+
+/* ---------------------------------------------------------- admin/superAdmin */
+
+/** Every field `POST /categories` accepts. `slug` is never generated server-side. */
+export interface CategoryPayload {
+  name: string;
+  /** Must match `^[a-z0-9]+(?:-[a-z0-9]+)*$` — same rule as product slugs. */
+  slug: string;
+  description?: string;
+  thumbnail?: string;
+  isActive?: boolean;
+  metaTitle?: string;
+  metaDescription?: string;
+}
+
+export async function createCategory(
+  token: string,
+  payload: CategoryPayload,
+): Promise<Category> {
+  return requestData("/categories", categorySchema, {
+    method: "POST",
+    body: payload,
+    token,
+    revalidate: false,
+  });
+}
+
+export async function updateCategory(
+  token: string,
+  categoryId: string,
+  payload: Partial<CategoryPayload>,
+): Promise<Category> {
+  return requestData(`/categories/${encodeURIComponent(categoryId)}`, categorySchema, {
+    method: "PATCH",
+    body: payload,
+    token,
+    revalidate: false,
+  });
+}
+
+export async function toggleCategoryStatus(
+  token: string,
+  categoryId: string,
+): Promise<Category> {
+  return requestData(
+    `/categories/${encodeURIComponent(categoryId)}/toggle-status`,
+    categorySchema,
+    { method: "PATCH", token, revalidate: false },
+  );
+}
+
+export async function deleteCategory(
+  token: string,
+  categoryId: string,
+): Promise<void> {
+  // Response shape not load-bearing here — only that the call succeeds.
+  await requestData(`/categories/${encodeURIComponent(categoryId)}`, z.unknown(), {
+    method: "DELETE",
+    token,
+    revalidate: false,
+  });
 }

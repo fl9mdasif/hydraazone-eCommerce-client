@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { m, AnimatePresence } from "framer-motion";
-import { Lock } from "lucide-react";
+import { AlertTriangle, Lock } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import { guestCheckout, login } from "@/lib/api/auth";
@@ -10,6 +10,7 @@ import { placeOrder } from "@/lib/api/orders";
 import { ApiError } from "@/lib/api/client";
 import { useCart } from "@/lib/hooks/use-cart";
 import { useSession } from "@/lib/hooks/use-session";
+import { useStockCheck } from "@/lib/hooks/use-stock-check";
 import { customLineNotes, estimateShipping, toOrderItems } from "@/stores/cart";
 import { formatCurrency } from "@/lib/utils/format";
 import { Button } from "@/components/ui/button";
@@ -58,7 +59,7 @@ export function CheckoutForm({
 }) {
   const router = useRouter();
   const { animate } = useMotionPreference();
-  const { lines, subtotal, hydrated, clear } = useCart();
+  const { lines, subtotal, hydrated, clear, setQuantity, removeItem } = useCart();
   const { token, user, isAuthenticated, setSession } = useSession();
 
   const [address, setAddress] = useState<AddressState>(EMPTY_ADDRESS);
@@ -69,6 +70,17 @@ export function CheckoutForm({
   const [needsLogin, setNeedsLogin] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+
+  /*
+   * A `CartLine`'s stock is a snapshot from whenever it was added — possibly
+   * hours or days stale, and `POST /carts` never checks stock either. This
+   * revalidates against live product data before the order can be placed,
+   * rather than letting the customer fill out the whole form and only then
+   * discover a 400 from the server. Called unconditionally (hook rules),
+   * before the early returns below.
+   */
+  const { status: stockStatus, issues: stockIssues, recheck: recheckStock } =
+    useStockCheck(lines, hydrated);
 
   const shipping = estimateShipping(
     subtotal,
@@ -110,7 +122,7 @@ export function CheckoutForm({
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    if (pending) return;
+    if (pending || stockStatus !== "ok") return;
 
     const validationError = validate();
     if (validationError) {
@@ -207,6 +219,64 @@ export function CheckoutForm({
     <form onSubmit={handleSubmit} className="grid gap-8 lg:grid-cols-[1fr_20rem]" noValidate>
       <div className="flex flex-col gap-6">
         <FormError message={error} />
+
+        {stockStatus === "blocked" ? (
+          <section
+            role="alert"
+            className="flex flex-col gap-3 rounded-lg border border-warning/40 bg-warning-soft p-4"
+          >
+            <p className="inline-flex items-center gap-2 text-sm font-medium text-ink">
+              <AlertTriangle aria-hidden className="size-4 text-warning" />
+              Some items in your cart have changed
+            </p>
+
+            <ul className="flex flex-col gap-3">
+              {stockIssues.map((issue) => (
+                <li
+                  key={`${issue.productId}-${issue.variantId}`}
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-surface px-3.5 py-2.5"
+                >
+                  <span className="flex flex-col text-sm">
+                    <span className="text-ink">{issue.name}</span>
+                    <span className="text-xs text-ink-secondary">
+                      {issue.variantName} — requested {issue.requested},{" "}
+                      {issue.available > 0
+                        ? `only ${issue.available} available`
+                        : "no longer available"}
+                    </span>
+                  </span>
+
+                  <span className="flex gap-2">
+                    {issue.available > 0 ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setQuantity(issue.productId, issue.variantId, issue.available);
+                          void recheckStock();
+                        }}
+                      >
+                        Update to {issue.available}
+                      </Button>
+                    ) : null}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        removeItem(issue.productId, issue.variantId);
+                        void recheckStock();
+                      }}
+                    >
+                      Remove
+                    </Button>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
 
         {!isAuthenticated ? (
           <section className="flex flex-col gap-4">
@@ -371,10 +441,19 @@ export function CheckoutForm({
 
         <section className="flex flex-col gap-3">
           <h2 className="font-display text-lg font-medium text-ink">Payment</h2>
-          <div className="flex items-center gap-3 rounded-lg border border-accent bg-muted px-4 py-3.5">
-            <span
-              aria-hidden
-              className="grid size-4 place-items-center rounded-full border-4 border-accent"
+          <label className="flex items-center gap-3 rounded-lg border border-accent bg-muted px-4 py-3.5">
+            {/*
+              A real radio input, not a styled span — COD is the only option
+              today, but assistive tech should see an actual control rather
+              than something merely painted to look like one.
+            */}
+            <input
+              type="radio"
+              name="paymentMethod"
+              value="cod"
+              checked
+              readOnly
+              className="size-4 accent-[var(--accent)]"
             />
             <span className="flex flex-col">
               <span className="text-sm font-medium text-ink">
@@ -384,7 +463,7 @@ export function CheckoutForm({
                 Pay the courier when your order arrives.
               </span>
             </span>
-          </div>
+          </label>
         </section>
       </div>
 
@@ -442,8 +521,19 @@ export function CheckoutForm({
         </p>
 
         <Magnetic className="w-full">
-          <Button type="submit" size="lg" fullWidth disabled={pending}>
-            {pending ? "Placing order…" : "Place order"}
+          <Button
+            type="submit"
+            size="lg"
+            fullWidth
+            disabled={pending || stockStatus !== "ok"}
+          >
+            {pending
+              ? "Placing order…"
+              : stockStatus === "checking"
+                ? "Checking availability…"
+                : stockStatus === "blocked"
+                  ? "Resolve the items above to continue"
+                  : "Place order"}
           </Button>
         </Magnetic>
       </aside>

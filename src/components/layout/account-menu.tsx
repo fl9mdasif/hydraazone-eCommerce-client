@@ -90,14 +90,24 @@ export function AccountMenu() {
                 Signed in as <span className="text-ink">{user.email}</span>
               </p>
 
-              <MenuLink href="/account" onClick={() => setOpen(false)}>
+              <MenuLink href="/dashboard/profile" onClick={() => setOpen(false)}>
                 <User aria-hidden className="size-4" />
                 Your account
               </MenuLink>
-              <MenuLink href="/account/orders" onClick={() => setOpen(false)}>
-                <Package aria-hidden className="size-4" />
-                Your orders
-              </MenuLink>
+              {user.role === "user" ? (
+                <MenuLink href="/dashboard/user" onClick={() => setOpen(false)}>
+                  <Package aria-hidden className="size-4" />
+                  Your orders
+                </MenuLink>
+              ) : (
+                <MenuLink
+                  href={user.role === "superAdmin" ? "/dashboard/superadmin" : "/dashboard/admin"}
+                  onClick={() => setOpen(false)}
+                >
+                  <Package aria-hidden className="size-4" />
+                  Dashboard
+                </MenuLink>
+              )}
 
               <button
                 type="button"

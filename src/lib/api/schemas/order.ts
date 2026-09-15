@@ -26,7 +26,16 @@ export const paymentMethodSchema = z.enum([
   "bank",
 ]);
 
-/** `items[].product` is populated as `name thumbnail slug` on read routes. */
+/**
+ * `items[].product` is populated as `name thumbnail slug` on read routes.
+ *
+ * Genuinely `null` in practice: `.populate()` resolves to `null` when the
+ * referenced Product document has since been deleted, but the order (a
+ * historical record) still references its old id. Not a hypothetical edge
+ * case — confirmed against a real order in the seeded DB. Normalise every
+ * shape (populated object, un-populated id string, or a dangling deleted
+ * reference) to one consistent object so callers never branch on it.
+ */
 const orderProductSchema = z
   .union([
     z.object({
@@ -36,10 +45,16 @@ const orderProductSchema = z
       thumbnail: z.string().nullish(),
     }),
     z.string(),
+    z.null(),
   ])
-  .transform((value) =>
-    typeof value === "string" ? { _id: value, name: "", slug: null, thumbnail: null } : value,
-  );
+  .transform((value) => {
+    if (value === null) {
+      return { _id: "", name: "Deleted product", slug: null, thumbnail: null };
+    }
+    return typeof value === "string"
+      ? { _id: value, name: "", slug: null, thumbnail: null }
+      : value;
+  });
 
 /**
  * A price snapshot taken at order time. `variant.price` is the LIST price;

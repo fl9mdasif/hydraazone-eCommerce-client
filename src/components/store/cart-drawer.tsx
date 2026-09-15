@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { m, AnimatePresence } from "framer-motion";
 import { Minus, Plus, ShoppingBag, Trash2, X } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useCart } from "@/lib/hooks/use-cart";
 import { estimateShipping, lineKey, stepQuantity } from "@/stores/cart";
 import { useUiStore } from "@/stores/ui";
@@ -45,13 +45,54 @@ export function CartDrawer({
   const remaining = Math.max(0, freeShippingThreshold - subtotal);
   const progress = Math.min(100, (subtotal / freeShippingThreshold) * 100);
 
-  // Escape closes, and the page behind must not scroll while it is open.
+  const panelRef = useRef<HTMLElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const previouslyFocused = useRef<HTMLElement | null>(null);
+
+  // Escape closes, the page behind must not scroll while it is open, and —
+  // since this is a real modal dialog — keyboard focus is trapped inside it
+  // and returned to whatever opened it on close, rather than leaking into
+  // the page behind.
   useEffect(() => {
     if (!open) return;
 
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") closeCart();
-    };
+    previouslyFocused.current = document.activeElement as HTMLElement | null;
+    closeButtonRef.current?.focus();
+
+    function getFocusable(): HTMLElement[] {
+      if (!panelRef.current) return [];
+      return Array.from(
+        panelRef.current.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      );
+    }
+
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        closeCart();
+        return;
+      }
+      if (event.key !== "Tab") return;
+
+      const focusable = getFocusable();
+      if (focusable.length === 0) return;
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const active = document.activeElement;
+      const withinPanel = active instanceof Node && panelRef.current?.contains(active);
+
+      if (event.shiftKey) {
+        if (!withinPanel || active === first) {
+          event.preventDefault();
+          last.focus();
+        }
+      } else if (!withinPanel || active === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
 
     document.addEventListener("keydown", onKeyDown);
     const previousOverflow = document.body.style.overflow;
@@ -60,6 +101,7 @@ export function CartDrawer({
     return () => {
       document.removeEventListener("keydown", onKeyDown);
       document.body.style.overflow = previousOverflow;
+      previouslyFocused.current?.focus();
     };
   }, [open, closeCart]);
 
@@ -78,6 +120,7 @@ export function CartDrawer({
           />
 
           <m.aside
+            ref={panelRef}
             role="dialog"
             aria-modal="true"
             aria-label="Your cart"
@@ -92,6 +135,7 @@ export function CartDrawer({
                 Your cart{count > 0 ? ` (${count})` : ""}
               </h2>
               <button
+                ref={closeButtonRef}
                 type="button"
                 onClick={closeCart}
                 aria-label="Close cart"

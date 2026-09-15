@@ -12,6 +12,11 @@ import { Field, FormError, TextInput } from "@/components/ui/field";
 import { Skeleton } from "@/components/ui/layout-primitives";
 import { formatDate } from "@/lib/utils/format";
 
+/**
+ * Shared across every role's sidebar (user/admin/superAdmin) — "my account"
+ * is the same concept and the same server calls regardless of who's signed
+ * in, so this is one component, not three.
+ */
 export function ProfilePanel() {
   const { token, signOut } = useSession();
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -54,6 +59,7 @@ export function ProfilePanel() {
           <Row label="Username" value={profile.username} />
           <Row label="Email" value={profile.email} />
           <Row label="Phone" value={profile.contactNumber || "—"} />
+          <Row label="Role" value={ROLE_LABEL[profile.role] ?? profile.role} />
           <Row label="Member since" value={formatDate(profile.createdAt)} />
         </dl>
       </section>
@@ -62,6 +68,12 @@ export function ProfilePanel() {
     </div>
   );
 }
+
+const ROLE_LABEL: Record<string, string> = {
+  user: "Customer",
+  admin: "Admin",
+  superAdmin: "Super Admin",
+};
 
 function Row({ label, value }: { label: string; value: string }) {
   return (

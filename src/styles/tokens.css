@@ -71,4 +71,32 @@
   /* ------------------------------------------------------------------ layout */
   --container-max: 80rem; /* 1280px */
   --header-h: 4.5rem;
+  --sidebar-w: 17rem;
+}
+
+/*
+ * Admin dashboard palette — scoped, not global.
+ *
+ * "Storefront and admin share primitives but not personality" (AGENTS.md
+ * §4). Every component already consumes colour through the tokens above via
+ * the @theme mapping in globals.css, so redefining a handful of them under
+ * this attribute selector is the entire mechanism for a distinct admin
+ * look — no component fork, no duplicated Button/Badge/CountUp variants.
+ * Applied once, on the dashboard/admin and dashboard/superadmin layout
+ * roots only — never on /dashboard/user or /dashboard/profile, which stay
+ * on the neutral customer-facing palette above since they're self-service
+ * surfaces, not the operator dashboard.
+ */
+[data-surface="admin"] {
+  --bg-base: #f6f9f6;
+  --bg-muted: #eef4ee;
+  --bg-subtle: #f0f5f0;
+
+  --accent: #16a34a;
+  --accent-hover: #15803d;
+  /* Admin has one accent, not a second warm one — reuse the same green so
+     any component still reading --accent-warm (e.g. StarRating) stays
+     legible rather than falling back to the storefront's taupe. */
+  --accent-warm: #16a34a;
+  --accent-warm-soft: #dcfce7;
 }

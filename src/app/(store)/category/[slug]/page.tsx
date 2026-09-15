@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 import { getActiveCategory } from "@/lib/api/categories";
 import { getProductsSafe, type ProductSort } from "@/lib/api/products";
-import { Container } from "@/components/ui/layout-primitives";
+import { Container, Skeleton } from "@/components/ui/layout-primitives";
 import { Pagination, ProductGrid } from "@/components/store/product-grid";
+import { ShopToolbar } from "@/components/store/shop-toolbar";
 
 export const revalidate = 300;
 
@@ -43,17 +45,26 @@ export default async function CategoryPage(
 
   const page = toPositiveInt(params.page) ?? 1;
   const sort = toSort(params.sort);
+  const search = toSingle(params.search);
+  const minPrice = toPositiveInt(params.minPrice);
+  const maxPrice = toPositiveInt(params.maxPrice);
 
   const { data: products, meta } = await getProductsSafe({
     category: category._id,
     page,
     limit: PAGE_SIZE,
     sort,
+    search,
+    minPrice,
+    maxPrice,
   });
 
   function buildHref(nextPage: number) {
     const query = new URLSearchParams();
+    if (search) query.set("search", search);
     if (sort) query.set("sort", sort);
+    if (minPrice) query.set("minPrice", String(minPrice));
+    if (maxPrice) query.set("maxPrice", String(maxPrice));
     if (nextPage > 1) query.set("page", String(nextPage));
     const qs = query.toString();
     return qs ? `/category/${category!.slug}?${qs}` : `/category/${category!.slug}`;
@@ -88,10 +99,16 @@ export default async function CategoryPage(
             {category.description}
           </p>
         ) : null}
-        <p className="text-sm text-ink-muted">
-          {meta.total} {meta.total === 1 ? "product" : "products"}
-        </p>
       </header>
+
+      {/*
+        Same toolbar as /shop, minus the category-pills row (redundant here
+        — the route itself already scopes to one category). Needs its own
+        Suspense boundary because it reads `useSearchParams()`.
+      */}
+      <Suspense fallback={<Skeleton className="h-24 w-full" />}>
+        <ShopToolbar categories={[]} total={meta.total} showCategoryFilter={false} />
+      </Suspense>
 
       <ProductGrid products={products} />
 

@@ -67,7 +67,9 @@ export function RegisterForm() {
       const session = await login({ email: email.trim(), password });
       setSession(session.user, session.accessToken);
       toast.success("Account created. Welcome to HydraaZone.");
-      router.push("/account");
+      // Registration always creates role `user` (never sent by this form),
+      // so /dashboard's own fan-out lands them at /dashboard/user.
+      router.push("/dashboard");
       router.refresh();
     } catch (caught) {
       if (caught instanceof ApiError) {

@@ -3,11 +3,7 @@ import { Suspense } from "react";
 import { getProductsSafe, type ProductSort } from "@/lib/api/products";
 import { getCategoriesSafe } from "@/lib/api/categories";
 import { Container, SectionHeading, Skeleton } from "@/components/ui/layout-primitives";
-import {
-  Pagination,
-  ProductGrid,
-  ProductGridSkeleton,
-} from "@/components/store/product-grid";
+import { Pagination, ProductGrid } from "@/components/store/product-grid";
 import { ShopToolbar } from "@/components/store/shop-toolbar";
 
 export const metadata: Metadata = {
@@ -58,13 +54,18 @@ export default async function ShopPage(props: PageProps<"/shop">) {
     <Container className="flex flex-col gap-8 py-8 sm:py-12">
       <SectionHeading title={search ? `Results for “${search}”` : "Shop all"} />
 
+      {/*
+        `ShopToolbar` needs its own boundary because it reads
+        `useSearchParams()`. `ProductGrid` below does NOT — its data is
+        already resolved by the `await` above, so a boundary around it could
+        never actually suspend; the real loading UI for this route is
+        `shop/loading.tsx`, shown during the navigation itself.
+      */}
       <Suspense fallback={<Skeleton className="h-32 w-full" />}>
         <ShopToolbar categories={categories} total={meta.total} />
       </Suspense>
 
-      <Suspense fallback={<ProductGridSkeleton count={PAGE_SIZE} />}>
-        <ProductGrid products={products} />
-      </Suspense>
+      <ProductGrid products={products} />
 
       <Pagination
         page={meta.page}

@@ -2,8 +2,11 @@ import { z } from "zod";
 import {
   profileSchema,
   savedAddressListSchema,
+  userListResponseSchema,
   type Profile,
   type SavedAddress,
+  type UserListResponse,
+  type UserRole,
 } from "./schemas/user";
 import { requestData } from "./client";
 
@@ -126,6 +129,76 @@ export async function deleteAddress(
   return requestData(
     `/users/addresses/${encodeURIComponent(addressId)}`,
     savedAddressListSchema,
+    { method: "DELETE", token, revalidate: false },
+  );
+}
+
+/* ---------------------------------------------------------- admin/superAdmin */
+
+/**
+ * `GET /users` — both `admin` and `superAdmin` can call this (a server code
+ * comment claims superAdmin-only, but the actual `auth()` call allows both;
+ * verified against the route source directly).
+ */
+export async function getUsers(
+  token: string,
+  query: {
+    search?: string;
+    role?: UserRole;
+    isBlocked?: boolean;
+    page?: number;
+    limit?: number;
+  } = {},
+): Promise<UserListResponse> {
+  return requestData("/users", userListResponseSchema, {
+    query,
+    token,
+    revalidate: false,
+  });
+}
+
+/**
+ * `PATCH /users/:id/role` — superAdmin only. The server blocks changing
+ * your own role (403), and blocks it whether or not this ever gets called
+ * on the caller's own id — a UI should never show this action on yourself.
+ */
+export async function updateUserRole(
+  token: string,
+  userId: string,
+  role: UserRole,
+): Promise<Profile> {
+  return requestData(`/users/${encodeURIComponent(userId)}/role`, profileSchema, {
+    method: "PATCH",
+    body: { role },
+    token,
+    revalidate: false,
+  });
+}
+
+/**
+ * `PATCH /users/:id/block` — superAdmin only. Takes NO body — the server
+ * reads the user's current `isBlocked` and flips it, so this is a toggle,
+ * not a set-to-value call.
+ */
+export async function toggleUserBlocked(
+  token: string,
+  userId: string,
+): Promise<Profile> {
+  return requestData(`/users/${encodeURIComponent(userId)}/block`, profileSchema, {
+    method: "PATCH",
+    token,
+    revalidate: false,
+  });
+}
+
+/** `DELETE /users/:id` — superAdmin only. Self-deletion is blocked (403). */
+export async function deleteUser(
+  token: string,
+  userId: string,
+): Promise<{ deleted: boolean; userId: string }> {
+  return requestData(
+    `/users/${encodeURIComponent(userId)}`,
+    z.object({ deleted: z.boolean(), userId: z.string() }),
     { method: "DELETE", token, revalidate: false },
   );
 }

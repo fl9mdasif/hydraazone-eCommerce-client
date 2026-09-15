@@ -29,7 +29,7 @@ export function LoginForm() {
   const [pending, setPending] = useState(false);
 
   // Send the customer back where they were, e.g. /login?next=/checkout
-  const next = searchParams.get("next") ?? "/account";
+  const next = searchParams.get("next") ?? "/dashboard";
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();

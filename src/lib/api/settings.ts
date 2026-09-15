@@ -1,6 +1,9 @@
 import {
+  adminSettingsSchema,
   publicSettingsSchema,
+  type AdminSettings,
   type PublicSettings,
+  type UpdateSettingsPayload,
 } from "./schemas/settings";
 import { requestData, type RequestOptions } from "./client";
 
@@ -33,4 +36,17 @@ export async function getPublicSettingsSafe(
     console.error("[api] getPublicSettings failed, using defaults:", error);
     return {};
   }
+}
+
+/** admin/superAdmin. Returns the full document, including write-only fields. */
+export async function updateSettings(
+  token: string,
+  payload: UpdateSettingsPayload,
+): Promise<AdminSettings> {
+  return requestData("/settings", adminSettingsSchema, {
+    method: "PATCH",
+    body: payload,
+    token,
+    revalidate: false,
+  });
 }

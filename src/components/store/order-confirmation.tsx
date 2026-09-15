@@ -223,13 +223,13 @@ export function OrderConfirmation({ orderId }: { orderId: string }) {
             </code>
             . Set your own password so only you can see your orders.
           </p>
-          <Button href="/account" size="sm">
+          <Button href="/dashboard/profile" size="sm">
             Set a password
           </Button>
         </StaggerItem>
 
         <StaggerItem className="flex flex-wrap justify-center gap-3 pt-2">
-          <Button href="/account/orders" variant="outline">
+          <Button href="/dashboard/user" variant="outline">
             View your orders
           </Button>
           <Link

@@ -173,6 +173,7 @@ export function ShopToolbar({
             <button
               type="button"
               onClick={() => apply({ category: null })}
+              aria-pressed={!currentCategory}
               className={cn(
                 "whitespace-nowrap rounded-full border px-4 py-1.5 text-sm transition-colors",
                 !currentCategory
@@ -188,6 +189,7 @@ export function ShopToolbar({
               <button
                 type="button"
                 onClick={() => apply({ category: category._id })}
+                aria-pressed={currentCategory === category._id}
                 className={cn(
                   "whitespace-nowrap rounded-full border px-4 py-1.5 text-sm transition-colors",
                   currentCategory === category._id
