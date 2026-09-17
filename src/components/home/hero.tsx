@@ -3,7 +3,7 @@
 import { m, AnimatePresence } from "framer-motion";
 import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import type { HeroSlide } from "@/content/home";
+import type { HeroSlide } from "@/lib/api/schemas/homepage";
 import { Button } from "@/components/ui/button";
 import { SmartImage } from "@/components/ui/smart-image";
 import { Magnetic } from "@/components/motion/magnetic";
@@ -129,7 +129,10 @@ export function Hero({ slides }: { slides: HeroSlide[] }) {
                 {active.eyebrow}
               </p>
 
-              <h1 className="font-display text-4xl font-medium leading-[1.05] tracking-tight text-ink sm:text-5xl lg:text-6xl">
+              <h1
+                className="font-display text-4xl font-medium leading-[1.05] tracking-tight text-ink sm:text-5xl lg:text-6xl"
+                style={active.headingColor ? { color: active.headingColor } : undefined}
+              >
                 {active.headline.split("\n").map((line) => (
                   <span key={line} className="block">
                     {line}
@@ -137,7 +140,10 @@ export function Hero({ slides }: { slides: HeroSlide[] }) {
                 ))}
               </h1>
 
-              <p className="max-w-md text-sm leading-relaxed text-ink-secondary sm:text-base">
+              <p
+                className="max-w-md text-sm leading-relaxed text-ink-secondary sm:text-base"
+                style={active.bodyColor ? { color: active.bodyColor } : undefined}
+              >
                 {active.body}
               </p>
 

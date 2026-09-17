@@ -36,6 +36,15 @@ const STATUS_TONE: Record<ProductStatus, "neutral" | "sale" | "out" | "success">
 
 const PAGE_SIZE = 15;
 
+/**
+ * The tag the storefront checks (`app/(store)/product/[slug]/page.tsx`,
+ * `CUSTOM_SIZE_TAG`) to decide whether to render the area-priced calculator
+ * (`TableCoverCalculator`) instead of the normal `ProductDetail` variant
+ * picker. Nothing else in the schema marks a product as this special case —
+ * it really is just this one tag plus the per-variant attributes below.
+ */
+const CUSTOM_SIZE_TAG = "custom-size";
+
 function emptyVariant(): VariantPayload {
   return { name: "", sku: "", price: 0, stock: 0, isAvailable: true, images: [] };
 }
@@ -47,6 +56,7 @@ const emptyForm = (): ProductPayload => ({
   category: "",
   thumbnail: "",
   gallery: [],
+  tags: [],
   variants: [emptyVariant()],
   status: "draft",
   isFeatured: false,
@@ -114,6 +124,7 @@ export function ProductsManagement() {
       category: product.category?._id ?? "",
       thumbnail: product.thumbnail,
       gallery: product.gallery,
+      tags: product.tags,
       variants: product.variants.map((variant) => ({
         name: variant.name,
         sku: variant.sku,
@@ -122,6 +133,7 @@ export function ProductsManagement() {
         stock: variant.stock,
         isAvailable: variant.isAvailable,
         images: variant.images,
+        attributes: variant.attributes,
       })),
       status: product.status,
       isFeatured: product.isFeatured,
@@ -140,6 +152,50 @@ export function ProductsManagement() {
     setForm((current) => ({
       ...current,
       variants: current.variants.map((variant, i) => (i === index ? { ...variant, ...patch } : variant)),
+    }));
+  }
+
+  /**
+   * `variant.price` must be the rate PER SQUARE INCH (`ratePerSqFt / 144`)
+   * — the server always computes a line as `price * quantity`, and the
+   * calculator sends square inches as `quantity` — see
+   * `lib/utils/table-cover.ts`'s own doc comment for the full reasoning.
+   * This keeps the human-entered "rate per sq ft" and the actually-charged
+   * `price` in lockstep so nobody has to do that division by hand.
+   */
+  function updateRatePerSqFt(index: number, ratePerSqFtInput: string) {
+    const ratePerSqFt = Number(ratePerSqFtInput);
+    setForm((current) => ({
+      ...current,
+      variants: current.variants.map((variant, i) =>
+        i === index
+          ? {
+              ...variant,
+              price: Number.isFinite(ratePerSqFt) ? ratePerSqFt / 144 : 0,
+              attributes: { ...variant.attributes, ratePerSqFt: ratePerSqFtInput },
+            }
+          : variant,
+      ),
+    }));
+  }
+
+  function updateThicknessLabel(index: number, label: string) {
+    setForm((current) => ({
+      ...current,
+      variants: current.variants.map((variant, i) =>
+        i === index ? { ...variant, attributes: { ...variant.attributes, label } } : variant,
+      ),
+    }));
+  }
+
+  /** Only one variant can be "Most popular" — matches `isMostPopular`'s read side. */
+  function setMostPopular(index: number) {
+    setForm((current) => ({
+      ...current,
+      variants: current.variants.map((variant, i) => ({
+        ...variant,
+        attributes: { ...variant.attributes, mostPopular: i === index ? "true" : "false" },
+      })),
     }));
   }
 
@@ -167,7 +223,11 @@ export function ProductsManagement() {
     if (form.variants.length === 0) return setFormError("At least one variant is required.");
     for (const variant of form.variants) {
       if (!variant.name.trim() || !variant.sku.trim() || variant.price <= 0) {
-        return setFormError("Every variant needs a name, SKU and a price greater than 0.");
+        return setFormError(
+          isCustomSize
+            ? "Every variant needs a name, SKU and a rate per square foot greater than 0."
+            : "Every variant needs a name, SKU and a price greater than 0.",
+        );
       }
     }
 
@@ -227,6 +287,7 @@ export function ProductsManagement() {
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const formOpen = creating || editing !== null;
+  const isCustomSize = (form.tags ?? []).includes(CUSTOM_SIZE_TAG);
 
   return (
     <div className="flex flex-col gap-5">
@@ -359,6 +420,31 @@ export function ProductsManagement() {
             </div>
           </div>
 
+          <label className="flex items-start gap-2 rounded-md border border-line bg-muted p-3 text-sm text-ink">
+            <input
+              type="checkbox"
+              checked={isCustomSize}
+              onChange={(event) => {
+                const checked = event.target.checked;
+                setForm((current) => ({
+                  ...current,
+                  tags: checked
+                    ? [...(current.tags ?? []).filter((tag) => tag !== CUSTOM_SIZE_TAG), CUSTOM_SIZE_TAG]
+                    : (current.tags ?? []).filter((tag) => tag !== CUSTOM_SIZE_TAG),
+                }));
+              }}
+              className="mt-0.5 size-4 accent-[var(--accent)]"
+            />
+            <span className="flex flex-col gap-0.5">
+              <span className="font-medium">Custom-size calculator</span>
+              <span className="text-xs text-ink-secondary">
+                Customer enters length &amp; width and is charged per square inch (like the
+                Transparent Table Cover) — each variant below becomes a thickness/material
+                option instead of a fixed-price choice.
+              </span>
+            </span>
+          </label>
+
           <div className="flex flex-wrap gap-6">
             <ImageUploader
               label="Thumbnail"
@@ -427,15 +513,28 @@ export function ProductsManagement() {
                   placeholder="SKU"
                   className="h-10 rounded-md border border-line bg-surface px-3 text-sm text-ink"
                 />
-                <input
-                  aria-label="Variant price"
-                  type="number"
-                  min={0}
-                  value={variant.price || ""}
-                  onChange={(event) => updateVariantField(index, { price: Number(event.target.value) })}
-                  placeholder="Price"
-                  className="h-10 rounded-md border border-line bg-surface px-3 text-sm text-ink"
-                />
+                {isCustomSize ? (
+                  <input
+                    aria-label="Rate per square foot (BDT)"
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={variant.attributes?.ratePerSqFt ?? ""}
+                    onChange={(event) => updateRatePerSqFt(index, event.target.value)}
+                    placeholder="Rate / sq ft"
+                    className="h-10 rounded-md border border-line bg-surface px-3 text-sm text-ink"
+                  />
+                ) : (
+                  <input
+                    aria-label="Variant price"
+                    type="number"
+                    min={0}
+                    value={variant.price || ""}
+                    onChange={(event) => updateVariantField(index, { price: Number(event.target.value) })}
+                    placeholder="Price"
+                    className="h-10 rounded-md border border-line bg-surface px-3 text-sm text-ink"
+                  />
+                )}
                 <input
                   aria-label="Variant stock"
                   type="number"
@@ -455,6 +554,33 @@ export function ProductsManagement() {
                   <Trash2 aria-hidden className="size-4" />
                 </button>
 
+                {isCustomSize ? (
+                  <div className="flex flex-wrap items-center gap-3 sm:col-span-6">
+                    <input
+                      aria-label="Thickness/material label"
+                      value={variant.attributes?.label ?? ""}
+                      onChange={(event) => updateThicknessLabel(index, event.target.value)}
+                      placeholder='Display label, e.g. "Extra Durable"'
+                      className="h-10 min-w-56 flex-1 rounded-md border border-line bg-surface px-3 text-sm text-ink"
+                    />
+                    <label className="inline-flex items-center gap-2 text-sm text-ink">
+                      <input
+                        type="radio"
+                        name="most-popular"
+                        checked={variant.attributes?.mostPopular === "true"}
+                        onChange={() => setMostPopular(index)}
+                        className="size-4 accent-[var(--accent)]"
+                      />
+                      Most popular
+                    </label>
+                    {variant.attributes?.ratePerSqFt ? (
+                      <span className="text-xs text-ink-muted">
+                        {formatCurrency(variant.price)} charged per square inch
+                      </span>
+                    ) : null}
+                  </div>
+                ) : null}
+
                 <div className="sm:col-span-6">
                   <ImageGalleryUploader
                     label="Images"
@@ -466,8 +592,9 @@ export function ProductsManagement() {
               </div>
             ))}
             <p className="text-xs text-ink-muted">
-              Discount price, weight and attributes can be set from a variant&apos;s own edit
-              screen once the product exists.
+              {isCustomSize
+                ? "Each variant is a thickness/material option, priced per square inch from the rate above."
+                : "Discount price, weight and attributes can be set from a variant's own edit screen once the product exists."}
             </p>
           </div>
 

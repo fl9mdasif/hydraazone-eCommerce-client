@@ -1,9 +1,14 @@
 /**
- * Homepage editorial content.
+ * Homepage editorial content that is NOT admin-editable: the trust strip,
+ * quality banner and feature strip. Edit this file to change any of those;
+ * no component needs touching.
  *
- * The API has no CMS for hero slides, promo tiles or collection banners, so
- * they live here as typed data. Edit this file to change the homepage; no
- * component needs touching.
+ * The hero carousel, the "quick links" promo grid (+ its offer card) and
+ * the "Featured Collections" grid used to live here too, but are now
+ * admin-editable from the dashboard (Homepage) and served from
+ * `GET /homepage` — see `lib/api/homepage.ts` and
+ * `lib/api/schemas/homepage.ts` for their shapes and `server/src/app/modules/homepage/`
+ * for the storage/defaults.
  *
  * Two rules for anything added here:
  *  1. Every `href` must point at a route that really exists — a seeded
@@ -14,47 +19,6 @@
  * The `image` values are picsum.photos placeholders: obviously disposable
  * development imagery, to be swapped for real photography before go-live.
  */
-
-export interface HeroSlide {
-  id: string;
-  eyebrow: string;
-  /** Split across two lines in the design; keep each line short. */
-  headline: string;
-  body: string;
-  primary: { href: string; label: string };
-  secondary?: { href: string; label: string };
-  image: string;
-  /** Describes the photograph, not the product. */
-  imageAlt: string;
-}
-
-export interface PromoTile {
-  id: string;
-  title: string;
-  body: string;
-  href: string;
-  cta: string;
-  image: string;
-  imageAlt: string;
-}
-
-export interface OfferTile {
-  eyebrow: string;
-  title: string;
-  body: string;
-  href: string;
-  cta: string;
-}
-
-export interface CollectionTile {
-  id: string;
-  title: string;
-  body: string;
-  href: string;
-  cta: string;
-  image: string;
-  imageAlt: string;
-}
 
 export type IconName =
   | "truck"
@@ -83,49 +47,6 @@ export interface FeatureItem {
 const img = (seed: string, w: number, h: number) =>
   `https://picsum.photos/seed/${seed}/${w}/${h}`;
 
-/* ------------------------------------------------------------------- hero */
-
-export const heroSlides: HeroSlide[] = [
-  {
-    id: "live-beautifully",
-    eyebrow: "New collection",
-    headline: "Live Beautifully.\nEvery Day.",
-    body: "Curated products for a better lifestyle. Quality, comfort and elegance — all in one place.",
-    primary: { href: "/shop", label: "Shop now" },
-    secondary: { href: "/category/home-living", label: "Explore collection" },
-    // Placeholder photography, supplied 2026-09-14 — swap for a real shoot
-    // before go-live (see the hosting note in next.config.ts).
-    image:
-      "https://www.morty.com/resources/wp-content/uploads/2020/02/spacejoy-YI2YkyaREHk-unsplash-scaled-e1695671185895.webp",
-    imageAlt: "A styled living room corner with a ceramic vase and soft throw",
-  },
-  {
-    id: "made-for-real-life",
-    eyebrow: "Home & living",
-    headline: "Made for\nReal Life.",
-    body: "Hard-wearing pieces that look better with use. Chosen to last, priced to be used.",
-    primary: { href: "/category/home-living", label: "Shop home" },
-    secondary: { href: "/shop", label: "Browse everything" },
-    image:
-      "https://www.theatrium.com.mt/content/images/home/homedecorimages/hero-refresh.jpg",
-    imageAlt: "A refreshed, sunlit home interior styled with warm decor",
-  },
-  {
-    id: "small-upgrades",
-    eyebrow: "Beauty & care",
-    headline: "Small Upgrades.\nBig Difference.",
-    body: "Clean formulations and honest labels, from daily skincare to the details that finish a routine.",
-    primary: { href: "/category/beauty-care", label: "Shop beauty" },
-    secondary: { href: "/category/health-wellness", label: "Wellness" },
-    // A Google Images cache thumbnail — low resolution (a few hundred px)
-    // and can expire or rotate without notice. Fine as a placeholder, not
-    // safe to leave in production; replace before go-live.
-    image:
-      "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTYpX2jkuAByFTErLLvxPdKAAcBaB5gYxPwV-bGz3UcuA&s=10",
-    imageAlt: "A softly lit lifestyle product arrangement",
-  },
-];
-
 /* ------------------------------------------------------------ trust strip */
 
 /**
@@ -145,79 +66,6 @@ export const trustItems: TrustItem[] = [
   { id: "returns", icon: "refresh", title: "Easy returns", body: "30-day return policy" },
   { id: "cod", icon: "wallet", title: "Cash on delivery", body: "Pay when it arrives" },
   { id: "support", icon: "headset", title: "7 days a week", body: "We're here to help" },
-];
-
-/* ------------------------------------------------------------ promo tiles */
-
-export const promoTiles: PromoTile[] = [
-  {
-    id: "new-arrivals",
-    title: "New Arrivals",
-    body: "The latest pieces to land, fresh off the shelf.",
-    href: "/shop?sort=-createdAt",
-    cta: "Shop now",
-    image: img("hz-promo-new", 600, 700),
-    imageAlt: "A leather handbag photographed against a warm neutral backdrop",
-  },
-  {
-    id: "trending",
-    title: "Trending Now",
-    body: "What everyone has been reaching for this month.",
-    href: "/shop?sort=-rating",
-    cta: "Shop now",
-    image: img("hz-promo-trending", 600, 700),
-    imageAlt: "A pair of over-ear headphones on a textured surface",
-  },
-  {
-    id: "best-sellers",
-    title: "Best Sellers",
-    body: "Customer favourites, rated and reviewed.",
-    href: "/shop?sort=-rating",
-    cta: "Shop now",
-    image: img("hz-promo-best", 600, 700),
-    imageAlt: "A glass fragrance bottle catching soft daylight",
-  },
-];
-
-/** The dark card in the reference design. */
-export const offerTile: OfferTile = {
-  eyebrow: "Limited time",
-  title: "Up to 40% Off",
-  body: "On selected items across home, beauty and kitchen.",
-  href: "/shop",
-  cta: "Shop the sale",
-};
-
-/* ------------------------------------------------------------ collections */
-
-export const collections: CollectionTile[] = [
-  {
-    id: "effortless-essentials",
-    title: "Effortless Essentials",
-    body: "Light, breathable and made for everyday use.",
-    href: "/category/home-living",
-    cta: "Shop now",
-    image: img("hz-col-essentials", 1000, 800),
-    imageAlt: "A low table with a vase and stacked linen in warm daylight",
-  },
-  {
-    id: "home-living",
-    title: "Home & Living",
-    body: "Designed for the way you live.",
-    href: "/category/home-living",
-    cta: "Shop now",
-    image: img("hz-col-home", 700, 400),
-    imageAlt: "Two stoneware vases on a pale shelf",
-  },
-  {
-    id: "beauty-care",
-    title: "Beauty & Care",
-    body: "Clean, conscious, crafted for you.",
-    href: "/category/beauty-care",
-    cta: "Shop now",
-    image: img("hz-col-beauty", 700, 400),
-    imageAlt: "Skincare bottles beside a folded towel",
-  },
 ];
 
 /* ------------------------------------------------------- quality + strip */

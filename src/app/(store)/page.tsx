@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import { getCategoriesSafe } from "@/lib/api/categories";
 import { getFeaturedProducts } from "@/lib/api/products";
 import { getPublicSettingsSafe } from "@/lib/api/settings";
+import { getHomepageContentSafe } from "@/lib/api/homepage";
 import { resolveShipping } from "@/lib/api/schemas/settings";
-import { heroSlides } from "@/content/home";
 import { Container, SectionHeading } from "@/components/ui/layout-primitives";
 import { Hero } from "@/components/home/hero";
 import { TrustBar } from "@/components/home/trust-bar";
@@ -30,10 +30,11 @@ export default async function HomePage() {
    * failure degrades its own section rather than taking the page down —
    * an empty category rail is survivable, a 500 on the homepage is not.
    */
-  const [categories, products, settings] = await Promise.all([
+  const [categories, products, settings, homepage] = await Promise.all([
     getCategoriesSafe(),
     getFeaturedProducts(6),
     getPublicSettingsSafe(),
+    getHomepageContentSafe(),
   ]);
 
   const { freeShippingThreshold } = resolveShipping(settings);
@@ -41,7 +42,7 @@ export default async function HomePage() {
   return (
     <div className="flex flex-col gap-12 pb-4 pt-4 sm:gap-16 sm:pt-6">
       <Container>
-        <Hero slides={heroSlides} />
+        <Hero slides={homepage.heroSlides} />
       </Container>
 
       <Container>
@@ -53,7 +54,7 @@ export default async function HomePage() {
       </Container>
 
       <Container>
-        <PromoTiles />
+        <PromoTiles promoTiles={homepage.promoTiles} offerTile={homepage.offerTile} />
       </Container>
 
       <Container className="flex flex-col gap-5">
@@ -63,7 +64,7 @@ export default async function HomePage() {
             action={{ href: "/shop", label: "View all collections" }}
           />
         </Reveal>
-        <FeaturedCollections />
+        <FeaturedCollections collections={homepage.collections} />
       </Container>
 
       <Container className="flex flex-col gap-6">

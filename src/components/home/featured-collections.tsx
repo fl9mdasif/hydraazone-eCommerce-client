@@ -1,14 +1,15 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-import { collections } from "@/content/home";
+import type { CollectionTile } from "@/lib/api/schemas/homepage";
 import { SmartImage } from "@/components/ui/smart-image";
 import { Reveal } from "@/components/motion/reveal";
 
 /**
  * One large collection card beside two stacked cards, as in the reference
- * design. Each links to a real category slug.
+ * design. Content comes from `GET /homepage`, admin-editable from the
+ * dashboard's Homepage section. Each links to a real category slug.
  */
-export function FeaturedCollections() {
+export function FeaturedCollections({ collections }: { collections: CollectionTile[] }) {
   const [lead, ...rest] = collections;
   if (!lead) return null;
 
@@ -22,6 +23,8 @@ export function FeaturedCollections() {
           cta={lead.cta}
           image={lead.image}
           imageAlt={lead.imageAlt}
+          headingColor={lead.headingColor}
+          bodyColor={lead.bodyColor}
           className="min-h-[22rem] lg:min-h-[26rem]"
           titleClassName="text-3xl sm:text-4xl"
           sizes="(max-width: 1024px) 100vw, 50vw"
@@ -38,6 +41,8 @@ export function FeaturedCollections() {
               cta={collection.cta}
               image={collection.image}
               imageAlt={collection.imageAlt}
+              headingColor={collection.headingColor}
+              bodyColor={collection.bodyColor}
               className="min-h-[10.5rem] lg:min-h-[12.5rem]"
               titleClassName="text-xl sm:text-2xl"
               sizes="(max-width: 1024px) 100vw, 50vw"
@@ -56,6 +61,8 @@ function CollectionCard({
   cta,
   image,
   imageAlt,
+  headingColor,
+  bodyColor,
   className,
   titleClassName,
   sizes,
@@ -66,6 +73,8 @@ function CollectionCard({
   cta: string;
   image: string;
   imageAlt: string;
+  headingColor?: string | null;
+  bodyColor?: string | null;
   className?: string;
   titleClassName?: string;
   sizes: string;
@@ -89,10 +98,16 @@ function CollectionCard({
       <span className="relative z-10 flex max-w-[62%] flex-col justify-center gap-2 p-6 sm:p-8">
         <span
           className={`font-display font-medium leading-tight tracking-tight text-ink ${titleClassName ?? ""}`}
+          style={headingColor ? { color: headingColor } : undefined}
         >
           {title}
         </span>
-        <span className="text-sm leading-relaxed text-ink-secondary">{body}</span>
+        <span
+          className="text-sm leading-relaxed text-ink-secondary"
+          style={bodyColor ? { color: bodyColor } : undefined}
+        >
+          {body}
+        </span>
         <span className="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-ink">
           {cta}
           <ArrowRight

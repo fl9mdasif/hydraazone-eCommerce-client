@@ -14,6 +14,7 @@ import {
   UserCircle,
   PanelLeftClose,
   PanelLeftOpen,
+  LayoutPanelTop,
 } from "lucide-react";
 import type { UserRole } from "@/lib/api/schemas/user";
 import { useDashboardUiStore } from "@/stores/dashboard-ui";
@@ -45,6 +46,7 @@ function navFor(role: UserRole): NavItem[] {
 
   const shared: NavItem[] = [
     { href: base, label: "Dashboard", icon: LayoutDashboard },
+    { href: `${base}/homepage`, label: "Homepage", icon: LayoutPanelTop },
     { href: `${base}/orders`, label: "Orders", icon: ShoppingBag },
     { href: `${base}/products`, label: "Products", icon: Package },
     { href: `${base}/categories`, label: "Categories", icon: Tags },

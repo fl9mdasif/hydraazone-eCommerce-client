@@ -2,9 +2,10 @@
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { X } from "lucide-react";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { PRODUCT_SORT_OPTIONS } from "@/lib/api/products";
 import type { Category } from "@/lib/api/schemas/category";
+import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils/cn";
 
@@ -39,6 +40,7 @@ export function ShopToolbar({
   const [search, setSearch] = useState(currentSearch);
   const [minPrice, setMinPrice] = useState(currentMin);
   const [maxPrice, setMaxPrice] = useState(currentMax);
+  const debouncedSearch = useDebouncedValue(search.trim(), 400);
 
   function apply(changes: Record<string, string | null>) {
     const params = new URLSearchParams(searchParams.toString());
@@ -53,6 +55,17 @@ export function ShopToolbar({
     const query = params.toString();
     router.push(query ? `${pathname}?${query}` : pathname);
   }
+
+  // "Type and it fetches" — Enter/submit below still applies instantly, this
+  // just catches the common case of someone who stops typing and never
+  // hits Enter. `router.push` isn't a React state setter, so nothing here
+  // needs to worry about the synchronous-setState-in-effect lint rule.
+  useEffect(() => {
+    if (debouncedSearch !== currentSearch) {
+      apply({ search: debouncedSearch || null });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearch]);
 
   function handleSearch(event: FormEvent) {
     event.preventDefault();
