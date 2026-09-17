@@ -6,6 +6,7 @@ import { getProductReviewsSafe } from "@/lib/api/reviews";
 import { getPublicSettingsSafe } from "@/lib/api/settings";
 import { defaultVariant, effectivePrice, isInStock } from "@/lib/utils/product";
 import { ratePerSqFt } from "@/lib/utils/table-cover";
+import { stripHtml } from "@/lib/utils/format";
 import { Container, SectionHeading } from "@/components/ui/layout-primitives";
 import { ProductDetail } from "@/components/store/product-detail";
 import { TableCoverCalculator } from "@/components/store/table-cover-calculator";
@@ -38,7 +39,7 @@ export async function generateMetadata(
 
   const title = product.metaTitle || product.name;
   const description =
-    product.metaDescription || product.description.slice(0, 155);
+    product.metaDescription || stripHtml(product.description).slice(0, 155);
 
   return {
     title,
@@ -99,7 +100,7 @@ export default async function ProductPage(props: PageProps<"/product/[slug]">) {
     "@context": "https://schema.org",
     "@type": "Product",
     name: product.name,
-    description: product.description,
+    description: stripHtml(product.description),
     image: [product.thumbnail, ...product.gallery].filter(Boolean),
     sku: variant?.sku,
     category: product.category?.name,

@@ -12,8 +12,11 @@ import {
   Settings,
   Users,
   UserCircle,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from "lucide-react";
 import type { UserRole } from "@/lib/api/schemas/user";
+import { useDashboardUiStore } from "@/stores/dashboard-ui";
 import { cn } from "@/lib/utils/cn";
 
 interface NavItem {
@@ -62,15 +65,42 @@ export function Sidebar({ role }: { role: UserRole }) {
   const pathname = usePathname();
   const items = navFor(role);
 
+  const collapsed = useDashboardUiStore((state) => state.collapsed);
+  const toggleSidebar = useDashboardUiStore((state) => state.toggleSidebar);
+
   return (
     <nav
       aria-label="Dashboard"
-      className="flex h-full w-[var(--sidebar-w)] shrink-0 flex-col border-r border-line bg-surface"
+      className={cn(
+        "flex h-full shrink-0 flex-col border-r border-line bg-surface transition-[width] duration-200",
+        collapsed ? "w-[4.5rem]" : "w-[var(--sidebar-w)]",
+      )}
     >
-      <div className="flex h-16 items-center gap-2 border-b border-line px-5">
-        <span className="font-display text-base font-semibold uppercase tracking-[0.14em] text-ink">
-          HydraaZone
-        </span>
+      <div
+        className={cn(
+          "flex h-16 items-center border-b border-line",
+          collapsed ? "justify-center px-2" : "justify-between px-5",
+        )}
+      >
+        {!collapsed ? (
+          <span className="truncate font-display text-base font-semibold uppercase tracking-[0.14em] text-ink">
+            HydraaZone
+          </span>
+        ) : null}
+
+        <button
+          type="button"
+          onClick={toggleSidebar}
+          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          aria-pressed={collapsed}
+          className="grid size-9 shrink-0 place-items-center rounded-md text-ink-secondary transition-colors hover:bg-muted hover:text-ink"
+        >
+          {collapsed ? (
+            <PanelLeftOpen aria-hidden className="size-5" />
+          ) : (
+            <PanelLeftClose aria-hidden className="size-5" />
+          )}
+        </button>
       </div>
 
       <ul className="flex flex-1 flex-col gap-0.5 overflow-y-auto p-3">
@@ -90,15 +120,17 @@ export function Sidebar({ role }: { role: UserRole }) {
               <Link
                 href={item.href}
                 aria-current={active ? "page" : undefined}
+                title={collapsed ? item.label : undefined}
                 className={cn(
                   "flex items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-colors duration-200",
+                  collapsed && "justify-center px-0",
                   active
                     ? "bg-accent text-on-accent"
                     : "text-ink-secondary hover:bg-muted hover:text-ink",
                 )}
               >
                 <ItemIcon className="size-5 shrink-0" />
-                {item.label}
+                {!collapsed ? item.label : null}
               </Link>
             </li>
           );

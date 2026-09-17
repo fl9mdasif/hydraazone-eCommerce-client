@@ -1,6 +1,7 @@
 "use client";
 
 import { m } from "framer-motion";
+import { ArrowDown, ArrowUp } from "lucide-react";
 import { useId, useMemo, useState } from "react";
 import type { SalesPoint } from "@/lib/api/orders";
 import { formatCurrency } from "@/lib/utils/format";
@@ -27,17 +28,48 @@ export type Period = (typeof PERIODS)[number]["value"];
 
 const WIDTH = 640;
 const HEIGHT = 220;
-const PADDING = { top: 16, right: 8, bottom: 24, left: 8 };
+// Left padding fits the revenue-value axis labels, bottom fits the date
+// labels — both were previously reserved but never actually drawn.
+const PADDING = { top: 16, right: 8, bottom: 28, left: 44 };
+
+/** `date` comes as `YYYY-MM-DD` / `YYYY-MM` / `YYYY` depending on `period`. */
+function formatAxisDate(date: string, period: Period): string {
+  if (period === "yearly") return date;
+
+  if (period === "monthly") {
+    const [year, month] = date.split("-").map(Number);
+    return new Date(year, month - 1, 1).toLocaleDateString("en-US", {
+      month: "short",
+      year: "numeric",
+    });
+  }
+
+  const [year, month, day] = date.split("-").map(Number);
+  return new Date(year, month - 1, day).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  });
+}
+
+/** A compact axis label — formatCurrency's BDT symbol is too wide for this. */
+function formatAxisValue(value: number): string {
+  if (value >= 100000) return `${Math.round(value / 1000)}K`;
+  if (value >= 1000) return `${(value / 1000).toFixed(value >= 10000 ? 0 : 1)}K`;
+  return String(Math.round(value));
+}
 
 export function RevenueChart({
   data,
   period,
   onPeriodChange,
+  trend,
   loading,
 }: {
   data: SalesPoint[];
   period: Period;
   onPeriodChange: (period: Period) => void;
+  /** A real week/month-over-period comparison, not an invented one — see overview.tsx. */
+  trend?: { percent: number; label: string } | null;
   loading?: boolean;
 }) {
   const { animate } = useMotionPreference();
@@ -49,7 +81,14 @@ export function RevenueChart({
     [data],
   );
 
-  const active = activeIndex !== null ? data[activeIndex] : null;
+  // Default to the most recent bucket (today, for `daily`) so "what's
+  // today's sales" is visible on load — hovering just moves the same panel
+  // to whichever point the cursor is over, it never has to be discovered.
+  const defaultIndex = data.length > 0 ? data.length - 1 : null;
+  const active = activeIndex !== null ? data[activeIndex] : defaultIndex !== null ? data[defaultIndex] : null;
+  const highlightedIndex = activeIndex !== null ? activeIndex : defaultIndex;
+  const totalRevenue = data.reduce((sum, point) => sum + point.revenue, 0);
+  const positive = trend ? trend.percent >= 0 : null;
 
   return (
     <div className="rounded-lg border border-line bg-surface p-5">
@@ -58,6 +97,30 @@ export function RevenueChart({
           <h2 className="font-display text-base font-medium text-ink">
             Revenue overview
           </h2>
+          {loading ? (
+            <Skeleton className="mt-1.5 h-7 w-32" />
+          ) : (
+            <div className="mt-1 flex items-center gap-2">
+              <span className="font-display text-2xl font-medium text-ink">
+                {formatCurrency(totalRevenue)}
+              </span>
+              {trend ? (
+                <span
+                  className={cn(
+                    "inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-xs font-medium",
+                    positive ? "bg-success-soft text-success" : "bg-danger-soft text-danger",
+                  )}
+                >
+                  {positive ? (
+                    <ArrowUp aria-hidden className="size-3" />
+                  ) : (
+                    <ArrowDown aria-hidden className="size-3" />
+                  )}
+                  {Math.abs(trend.percent).toFixed(1)}%
+                </span>
+              ) : null}
+            </div>
+          )}
           <p className="text-xs text-ink-secondary">Delivered orders only</p>
         </div>
 
@@ -110,19 +173,30 @@ export function RevenueChart({
               </linearGradient>
             </defs>
 
-            {/* Gridlines */}
+            {/* Gridlines + Y-axis value labels */}
             {[0, 1, 2, 3].map((row) => {
               const y = PADDING.top + (row * (HEIGHT - PADDING.top - PADDING.bottom)) / 3;
+              const value = maxRevenue * (1 - row / 3);
               return (
-                <line
-                  key={row}
-                  x1={PADDING.left}
-                  x2={WIDTH - PADDING.right}
-                  y1={y}
-                  y2={y}
-                  stroke="var(--line-subtle)"
-                  strokeWidth={1}
-                />
+                <g key={row}>
+                  <text
+                    x={PADDING.left - 8}
+                    y={y}
+                    textAnchor="end"
+                    dominantBaseline="middle"
+                    className="fill-ink-muted text-[0.6rem]"
+                  >
+                    {formatAxisValue(value)}
+                  </text>
+                  <line
+                    x1={PADDING.left}
+                    x2={WIDTH - PADDING.right}
+                    y1={y}
+                    y2={y}
+                    stroke="var(--line-subtle)"
+                    strokeWidth={1}
+                  />
+                </g>
               );
             })}
 
@@ -132,6 +206,7 @@ export function RevenueChart({
               d={linePath}
               fill="none"
               stroke="var(--accent)"
+              strokeOpacity={0.55}
               strokeWidth={3}
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -141,20 +216,21 @@ export function RevenueChart({
             />
 
             {/*
-              Dots stay hidden at rest, matching the clean reference curve —
-              except a single-bucket period, whose path is just one
-              "moveto" with zero length: nothing to stroke, so the dot is
-              the only thing that renders anything at all there.
+              Every bucket's point stays visible, not just the hovered one —
+              a daily/yearly point shouldn't require a hover to be seen.
+              The active point (hovered, or today's by default) stands out
+              larger and full opacity; the rest sit smaller and faded.
             */}
             {points.map((point, index) => (
               <circle
                 key={point.date}
                 cx={point.x}
                 cy={point.y}
-                r={activeIndex === index ? 5 : points.length === 1 ? 4 : 0}
+                r={highlightedIndex === index ? 6 : 3}
                 fill="var(--accent)"
+                fillOpacity={highlightedIndex === index ? 1 : 0.45}
                 stroke="var(--bg-surface)"
-                strokeWidth={activeIndex === index || points.length === 1 ? 2 : 0}
+                strokeWidth={highlightedIndex === index ? 2 : 1}
                 className="transition-[r] duration-150"
               />
             ))}
@@ -174,13 +250,29 @@ export function RevenueChart({
                 aria-label={`${point.date}: ${formatCurrency(data[index].revenue)}`}
               />
             ))}
+
+            {/* X-axis date labels — a handful evenly spaced, not one per
+                bucket (30 daily points would overlap into an unreadable
+                smear), always including the first and last. */}
+            {axisLabelIndices(points.length).map((index) => (
+              <text
+                key={`axis-${points[index].date}`}
+                x={points[index].x}
+                y={HEIGHT - 8}
+                textAnchor="middle"
+                className="fill-ink-muted text-[0.6rem]"
+              >
+                {formatAxisDate(data[index].date, period)}
+              </text>
+            ))}
           </svg>
 
           {active ? (
             <div className="pointer-events-none absolute left-2 top-0 rounded-md border border-line bg-surface px-3 py-2 text-xs shadow-lift">
               <p className="font-medium text-ink">{formatCurrency(active.revenue)}</p>
               <p className="text-ink-secondary">
-                {active.date} · {active.orders} {active.orders === 1 ? "order" : "orders"}
+                {formatAxisDate(active.date, period)} · {active.orders}{" "}
+                {active.orders === 1 ? "order" : "orders"}
               </p>
             </div>
           ) : null}
@@ -188,6 +280,19 @@ export function RevenueChart({
       )}
     </div>
   );
+}
+
+/** At most 6 evenly-spaced indices, always including the first and last. */
+function axisLabelIndices(count: number): number[] {
+  if (count <= 1) return count === 1 ? [0] : [];
+
+  const maxLabels = Math.min(6, count);
+  const step = (count - 1) / (maxLabels - 1);
+  const indices = new Set<number>();
+  for (let i = 0; i < maxLabels; i += 1) {
+    indices.add(Math.round(i * step));
+  }
+  return Array.from(indices).sort((a, b) => a - b);
 }
 
 function buildPaths(data: SalesPoint[]) {

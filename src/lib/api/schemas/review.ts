@@ -17,10 +17,33 @@ export const reviewAuthorSchema = z
     value == null || typeof value === "string" ? null : value,
   );
 
+/**
+ * `GET /reviews/product/:id` (public) leaves `product` unpopulated — just
+ * the id string. `GET /reviews` (admin) populates it as `name slug
+ * thumbnail`. Normalise both to the same shape so callers never branch on
+ * which endpoint they came from — the same fix already needed for orders'
+ * `items[].product`.
+ */
+export const reviewProductRefSchema = z
+  .union([
+    z.object({
+      _id: z.string(),
+      name: z.string(),
+      slug: z.string().nullish(),
+      thumbnail: z.string().nullish(),
+    }),
+    z.string(),
+    z.null(),
+  ])
+  .transform((value) => {
+    if (value === null) return null;
+    return typeof value === "string" ? { _id: value, name: "", slug: null, thumbnail: null } : value;
+  });
+
 export const reviewSchema = z.object({
   _id: z.string(),
   user: reviewAuthorSchema,
-  product: z.string(),
+  product: reviewProductRefSchema,
   order: z.string().nullish(),
   variantId: z.string().nullish(),
   rating: z.number(),

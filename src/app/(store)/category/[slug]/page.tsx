@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { getActiveCategory } from "@/lib/api/categories";
 import { getProductsSafe, type ProductSort } from "@/lib/api/products";
+import { stripHtml } from "@/lib/utils/format";
 import { Container, Skeleton } from "@/components/ui/layout-primitives";
 import { Pagination, ProductGrid } from "@/components/store/product-grid";
 import { ShopToolbar } from "@/components/store/shop-toolbar";
@@ -24,7 +25,7 @@ export async function generateMetadata(
     title: category.metaTitle || category.name,
     description:
       category.metaDescription ||
-      category.description ||
+      (category.description ? stripHtml(category.description) : "") ||
       `Shop ${category.name} at HydraaZone.`,
     alternates: { canonical: `/category/${category.slug}` },
   };
@@ -95,9 +96,12 @@ export default async function CategoryPage(
           {category.name}
         </h1>
         {category.description ? (
-          <p className="max-w-xl text-sm leading-relaxed text-ink-secondary">
-            {category.description}
-          </p>
+          // Rich text (HTML) from the admin's RichTextEditor —
+          // admin-authored, same trust boundary as any CMS description.
+          <div
+            className="max-w-xl text-sm leading-relaxed text-ink-secondary [&_a]:text-accent [&_a]:underline [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5"
+            dangerouslySetInnerHTML={{ __html: category.description }}
+          />
         ) : null}
       </header>
 

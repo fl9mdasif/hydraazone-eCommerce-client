@@ -1,8 +1,9 @@
 "use client";
 
 import { m, AnimatePresence } from "framer-motion";
-import { Check, Heart, Minus, Plus, ShoppingBag } from "lucide-react";
-import { useMemo, useState } from "react";
+import { Check, Heart, Minus, Plus, ShoppingBag, Zap } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useMemo, useRef, useState } from "react";
 import type { Product } from "@/lib/api/schemas/product";
 import {
   defaultVariant,
@@ -13,6 +14,7 @@ import {
 } from "@/lib/utils/product";
 import { formatCurrency, titleCase } from "@/lib/utils/format";
 import { useCart } from "@/lib/hooks/use-cart";
+import { useWishlist } from "@/lib/hooks/use-wishlist";
 import { useWishlistStore } from "@/stores/wishlist";
 import { SmartImage } from "@/components/ui/smart-image";
 import { Badge, StarRating } from "@/components/ui/layout-primitives";
@@ -33,9 +35,23 @@ import { cn } from "@/lib/utils/cn";
  * its background between options via a shared `layoutId`, and the add-to-cart
  * button morphs into a checkmark on success.
  */
+/** Diameter of the magnifier circle, in px. */
+const LENS_SIZE = 160;
+/** How much larger the lensed view is than the image itself. */
+const ZOOM_FACTOR = 2.4;
+
 export function ProductDetail({ product }: { product: Product }) {
   const { animate } = useMotionPreference();
   const { addItem } = useCart();
+  const router = useRouter();
+  const [buying, setBuying] = useState(false);
+  const galleryRef = useRef<HTMLDivElement>(null);
+  const [lens, setLens] = useState<{
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  } | null>(null);
 
   const [variantId, setVariantId] = useState(
     () => defaultVariant(product)?._id ?? product.variants[0]?._id ?? "",
@@ -46,7 +62,7 @@ export function ProductDetail({ product }: { product: Product }) {
   const wishlisted = useWishlistStore((state) =>
     state.productIds.includes(product._id),
   );
-  const toggleWishlist = useWishlistStore((state) => state.toggle);
+  const { toggle: toggleWishlist } = useWishlist();
 
   const variant = useMemo(
     () => product.variants.find((candidate) => candidate._id === variantId) ?? null,
@@ -74,6 +90,13 @@ export function ProductDetail({ product }: { product: Product }) {
     window.setTimeout(() => setAdded(false), 1600);
   }
 
+  function handleBuyNow() {
+    if (!variant || !inStock || buying) return;
+    setBuying(true);
+    addItem(product, variant, quantity, { openDrawer: false });
+    router.push("/checkout");
+  }
+
   function selectVariant(nextId: string) {
     setVariantId(nextId);
     setQuantity(1);
@@ -84,7 +107,27 @@ export function ProductDetail({ product }: { product: Product }) {
     <div className="grid gap-8 lg:grid-cols-2 lg:gap-12">
       {/* ---------------------------------------------------------- gallery */}
       <div className="flex flex-col gap-3">
-        <div className="relative aspect-square overflow-hidden rounded-lg bg-muted">
+        <div
+          ref={galleryRef}
+          className="relative aspect-square cursor-zoom-in overflow-hidden rounded-lg bg-muted"
+          onMouseMove={(event) => {
+            const rect = galleryRef.current?.getBoundingClientRect();
+            if (!rect) return;
+            // Clamped so the lens circle always sits fully inside the
+            // image — it never gets cut off by this container's own
+            // `overflow-hidden` near an edge or corner. Width/height are
+            // measured here, in the event handler, rather than read from
+            // the ref during render.
+            const half = LENS_SIZE / 2;
+            setLens({
+              x: Math.min(Math.max(event.clientX - rect.left, half), rect.width - half),
+              y: Math.min(Math.max(event.clientY - rect.top, half), rect.height - half),
+              width: rect.width,
+              height: rect.height,
+            });
+          }}
+          onMouseLeave={() => setLens(null)}
+        >
           <AnimatePresence mode="wait">
             <m.div
               key={images[activeImage] ?? "empty"}
@@ -108,6 +151,37 @@ export function ProductDetail({ product }: { product: Product }) {
             <div className="absolute left-4 top-4">
               <Badge tone="sale">-{discountPercent(variant)}%</Badge>
             </div>
+          ) : null}
+
+          {/*
+            The hover magnifier: a circle that follows the cursor, showing
+            the same image scaled up and repositioned so the point under
+            the cursor stays centred in the lens — the standard product-photo
+            "zoom to inspect" pattern. Mouse-only by construction (no touch
+            equivalent event drives `lensPos`), so it's a no-op on mobile.
+          */}
+          {lens && images[activeImage] ? (
+            <m.div
+              aria-hidden
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: DURATION.instant, ease: EASE_OUT }}
+              className="pointer-events-none absolute z-10 rounded-full border-2 border-surface shadow-lift"
+              style={{
+                width: LENS_SIZE,
+                height: LENS_SIZE,
+                left: lens.x - LENS_SIZE / 2,
+                top: lens.y - LENS_SIZE / 2,
+                backgroundImage: `url(${images[activeImage]})`,
+                backgroundRepeat: "no-repeat",
+                backgroundSize: `${lens.width * ZOOM_FACTOR}px ${lens.height * ZOOM_FACTOR}px`,
+                backgroundPosition: `${-(lens.x * ZOOM_FACTOR - LENS_SIZE / 2)}px ${-(
+                  lens.y * ZOOM_FACTOR -
+                  LENS_SIZE / 2
+                )}px`,
+              }}
+            />
           ) : null}
         </div>
 
@@ -182,7 +256,7 @@ export function ProductDetail({ product }: { product: Product }) {
         </div>
 
         {/* -------------------------------------------------- variant picker */}
-        {product.variants.length > 1 ? (
+        {product.variants.length >= 1 ? (
           <fieldset className="flex flex-col gap-2.5">
             <legend className="text-sm font-medium text-ink">
               Select option
@@ -270,12 +344,13 @@ export function ProductDetail({ product }: { product: Product }) {
         </div>
 
         {/* -------------------------------------------------- add to cart */}
-        <div className="flex gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row">
           <Magnetic className="flex-1">
             <Button
               onClick={handleAdd}
               size="lg"
               fullWidth
+              variant="outline"
               disabled={!inStock}
               aria-label={`Add ${product.name} to cart`}
             >
@@ -309,6 +384,21 @@ export function ProductDetail({ product }: { product: Product }) {
             </Button>
           </Magnetic>
 
+          <Magnetic className="flex-1">
+            <Button
+              onClick={handleBuyNow}
+              size="lg"
+              fullWidth
+              disabled={!inStock || buying}
+              aria-label={`Buy ${product.name} now`}
+            >
+              <span className="inline-flex items-center gap-2">
+                <Zap aria-hidden className="size-4" />
+                {inStock ? "Buy now" : "Sold out"}
+              </span>
+            </Button>
+          </Magnetic>
+
           <Button
             onClick={() => toggleWishlist(product._id)}
             variant="outline"
@@ -331,9 +421,13 @@ export function ProductDetail({ product }: { product: Product }) {
         {/* ------------------------------------------------------- details */}
         <div className="flex flex-col gap-3 border-t border-line pt-5">
           <h2 className="text-sm font-medium text-ink">Product details</h2>
-          <p className="whitespace-pre-line text-sm leading-relaxed text-ink-secondary">
-            {product.description}
-          </p>
+          {/* `description` is rich text (HTML) written in the admin's
+              RichTextEditor — admin-authored, same trust boundary as any
+              CMS description field. */}
+          <div
+            className="text-sm leading-relaxed text-ink-secondary [&_a]:text-accent [&_a]:underline [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5"
+            dangerouslySetInnerHTML={{ __html: product.description }}
+          />
 
           {variant ? (
             <dl className="mt-1 flex flex-col gap-1.5 text-sm">

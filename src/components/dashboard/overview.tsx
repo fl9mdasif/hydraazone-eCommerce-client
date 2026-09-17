@@ -293,6 +293,7 @@ export function DashboardOverview() {
           data={salesData ?? []}
           period={period}
           onPeriodChange={setPeriod}
+          trend={revenueTrend}
           loading={salesData === null}
         />
         <StatusDonut segments={donutSegments} loading={!paymentCounts && !errors.donut} />

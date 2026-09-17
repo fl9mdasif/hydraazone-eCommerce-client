@@ -1,4 +1,9 @@
-import type { InputHTMLAttributes, ReactNode, TextareaHTMLAttributes } from "react";
+import type {
+  InputHTMLAttributes,
+  ReactNode,
+  SelectHTMLAttributes,
+  TextareaHTMLAttributes,
+} from "react";
 import { useId } from "react";
 import { cn } from "@/lib/utils/cn";
 
@@ -99,6 +104,25 @@ export function TextArea({
       aria-invalid={invalid || undefined}
       aria-describedby={describedBy}
       className={cn(CONTROL, "min-h-24 py-2.5", className)}
+    />
+  );
+}
+
+export function Select({
+  className,
+  invalid,
+  describedBy,
+  ...props
+}: SelectHTMLAttributes<HTMLSelectElement> & {
+  invalid?: boolean;
+  describedBy?: string;
+}) {
+  return (
+    <select
+      {...props}
+      aria-invalid={invalid || undefined}
+      aria-describedby={describedBy}
+      className={cn(CONTROL, "h-11", className)}
     />
   );
 }

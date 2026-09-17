@@ -86,3 +86,23 @@ export const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 export function isValidSlug(value: string): boolean {
   return SLUG_PATTERN.test(value);
 }
+
+/**
+ * Product/category `description` is rich text (HTML) from
+ * `RichTextEditor` — this strips tags for the places that need plain text
+ * instead: a `<meta description>` fallback, JSON-LD, a card excerpt. Pure
+ * string/regex, not DOM-based, so it also works in `generateMetadata`
+ * (runs server-side, no `document`).
+ */
+export function stripHtml(html: string): string {
+  return html
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\s+/g, " ")
+    .trim();
+}

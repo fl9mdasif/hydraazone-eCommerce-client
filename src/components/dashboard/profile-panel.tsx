@@ -2,14 +2,15 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { toast } from "sonner";
-import { changePassword, getProfile } from "@/lib/api/users";
+import { changePassword, getProfile, updateProfile } from "@/lib/api/users";
 import { PASSWORD_MAX, PASSWORD_MIN } from "@/lib/api/auth";
 import { ApiError } from "@/lib/api/client";
 import type { Profile } from "@/lib/api/schemas/user";
 import { useSession } from "@/lib/hooks/use-session";
 import { Button } from "@/components/ui/button";
-import { Field, FormError, TextInput } from "@/components/ui/field";
+import { Field, FormError, TextArea, TextInput } from "@/components/ui/field";
 import { Skeleton } from "@/components/ui/layout-primitives";
+import { ImageUploader } from "@/components/ui/image-uploader";
 import { formatDate } from "@/lib/utils/format";
 
 /**
@@ -49,21 +50,11 @@ export function ProfilePanel() {
   }, [token, signOut]);
 
   if (loadError) return <FormError message={loadError} />;
-  if (!profile) return <Skeleton className="h-64 w-full" />;
+  if (!profile || !token) return <Skeleton className="h-64 w-full" />;
 
   return (
     <div className="grid gap-8 lg:grid-cols-2">
-      <section className="flex flex-col gap-4">
-        <h2 className="font-display text-lg font-medium text-ink">Details</h2>
-        <dl className="flex flex-col gap-3 rounded-lg border border-line bg-surface p-5 text-sm">
-          <Row label="Username" value={profile.username} />
-          <Row label="Email" value={profile.email} />
-          <Row label="Phone" value={profile.contactNumber || "—"} />
-          <Row label="Role" value={ROLE_LABEL[profile.role] ?? profile.role} />
-          <Row label="Member since" value={formatDate(profile.createdAt)} />
-        </dl>
-      </section>
-
+      <ProfileForm profile={profile} token={token} onSaved={setProfile} />
       <ChangePasswordForm />
     </div>
   );
@@ -75,12 +66,163 @@ const ROLE_LABEL: Record<string, string> = {
   superAdmin: "Super Admin",
 };
 
-function Row({ label, value }: { label: string; value: string }) {
+/**
+ * `username`/`contactNumber`/`address` initialise once from `profile` at
+ * mount (a plain `useState` initializer, not an effect) — this component
+ * only mounts once `profile` has actually loaded, so there's no derived-
+ * state-in-an-effect footgun, and a later picture-only update to `profile`
+ * (see `ImageUploader`'s `onSaved`) won't clobber whatever the admin is
+ * mid-typing here.
+ */
+function ProfileForm({
+  profile,
+  token,
+  onSaved,
+}: {
+  profile: Profile;
+  token: string;
+  onSaved: (profile: Profile) => void;
+}) {
+  const [username, setUsername] = useState(profile.username);
+  const [contactNumber, setContactNumber] = useState(profile.contactNumber ?? "");
+  const [address, setAddress] = useState(profile.address ?? "");
+  const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
+
+  const dirty =
+    username !== profile.username ||
+    contactNumber !== (profile.contactNumber ?? "") ||
+    address !== (profile.address ?? "");
+
+  function reset() {
+    setUsername(profile.username);
+    setContactNumber(profile.contactNumber ?? "");
+    setAddress(profile.address ?? "");
+    setError(null);
+  }
+
+  async function handleSubmit(event: FormEvent) {
+    event.preventDefault();
+    if (pending || !dirty) return;
+
+    if (!username.trim()) {
+      setError("Username can't be empty.");
+      return;
+    }
+
+    setPending(true);
+    setError(null);
+    try {
+      const updated = await updateProfile(token, {
+        username: username.trim(),
+        contactNumber: contactNumber.trim(),
+        address: address.trim(),
+      });
+      onSaved(updated);
+      toast.success("Profile updated");
+    } catch (caught) {
+      setError(
+        caught instanceof ApiError
+          ? caught.status === 409
+            ? "That username is already taken."
+            : caught.message
+          : "Something went wrong. Please try again.",
+      );
+    } finally {
+      setPending(false);
+    }
+  }
+
   return (
-    <div className="flex justify-between gap-4">
-      <dt className="text-ink-secondary">{label}</dt>
-      <dd className="text-right text-ink">{value}</dd>
-    </div>
+    <section className="flex flex-col gap-4">
+      <h2 className="font-display text-lg font-medium text-ink">Details</h2>
+
+      <form
+        onSubmit={handleSubmit}
+        className="flex flex-col gap-5 rounded-lg border border-line bg-surface p-5"
+        noValidate
+      >
+        <FormError message={error} />
+
+        <ImageUploader
+          label="Profile picture"
+          value={profile.profilePicture ?? ""}
+          token={token}
+          onChange={async (url) => {
+            try {
+              const updated = await updateProfile(token, { profilePicture: url });
+              onSaved(updated);
+              toast.success("Profile picture updated");
+            } catch (caught) {
+              toast.error(
+                caught instanceof ApiError ? caught.message : "Could not save your picture.",
+              );
+            }
+          }}
+        />
+
+        <Field label="Username" required>
+          {(props) => (
+            <TextInput
+              {...props}
+              required
+              value={username}
+              onChange={(event) => setUsername(event.target.value)}
+            />
+          )}
+        </Field>
+
+        <Field label="Phone">
+          {(props) => (
+            <TextInput
+              {...props}
+              type="tel"
+              value={contactNumber}
+              onChange={(event) => setContactNumber(event.target.value)}
+            />
+          )}
+        </Field>
+
+        <Field label="Address">
+          {(props) => (
+            <TextArea
+              {...props}
+              value={address}
+              onChange={(event) => setAddress(event.target.value)}
+            />
+          )}
+        </Field>
+
+        {/* Email has no update route server-side — `PATCH /users/me` only
+            ever accepts username/contactNumber/address/profilePicture — so
+            it stays read-only rather than a button with nothing behind it. */}
+        <div className="flex flex-col gap-1.5">
+          <span className="text-sm font-medium text-ink">Email</span>
+          <p className="text-sm text-ink-secondary">{profile.email}</p>
+          <p className="text-xs text-ink-muted">Used to log in to your account</p>
+        </div>
+
+        <dl className="flex flex-col gap-2 border-t border-line pt-4 text-sm">
+          <div className="flex justify-between gap-4">
+            <dt className="text-ink-secondary">Role</dt>
+            <dd className="text-ink">{ROLE_LABEL[profile.role] ?? profile.role}</dd>
+          </div>
+          <div className="flex justify-between gap-4">
+            <dt className="text-ink-secondary">Member since</dt>
+            <dd className="text-ink">{formatDate(profile.createdAt)}</dd>
+          </div>
+        </dl>
+
+        <div className="flex gap-2 border-t border-line pt-4">
+          <Button type="submit" disabled={pending || !dirty}>
+            {pending ? "Saving…" : "Save"}
+          </Button>
+          <Button type="button" variant="outline" disabled={pending || !dirty} onClick={reset}>
+            Cancel
+          </Button>
+        </div>
+      </form>
+    </section>
   );
 }
 

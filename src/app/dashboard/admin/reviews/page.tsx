@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Topbar } from "@/components/dashboard/topbar";
-import { ComingSoon } from "@/components/dashboard/coming-soon";
+import { ReviewsManagement } from "@/components/dashboard/reviews-management";
 
 export const metadata: Metadata = {
   title: "Review moderation",
@@ -10,9 +10,9 @@ export const metadata: Metadata = {
 export default function AdminReviewsPage() {
   return (
     <>
-      <Topbar title="Review moderation" />
+      <Topbar title="Reviews" />
       <main className="flex-1 overflow-y-auto p-6">
-        <ComingSoon section="Review moderation" />
+        <ReviewsManagement />
       </main>
     </>
   );

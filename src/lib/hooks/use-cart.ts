@@ -105,7 +105,12 @@ export function useCart() {
   const openCart = useUiStore((state) => state.openCart);
 
   const addItem = useCallback(
-    (product: Product, variant: Variant, quantity = 1) => {
+    (
+      product: Product,
+      variant: Variant,
+      quantity = 1,
+      options?: { openDrawer?: boolean },
+    ) => {
       const line: CartLine = {
         productId: product._id,
         variantId: variant._id,
@@ -120,7 +125,10 @@ export function useCart() {
       };
 
       addLine(line);
-      openCart();
+      // "Buy now" adds the line then navigates straight to checkout — the
+      // cart drawer would just flash open behind the navigation, so it
+      // opts out via `openDrawer: false`.
+      if (options?.openDrawer !== false) openCart();
 
       const token = useAuthStore.getState().token;
       if (token) {

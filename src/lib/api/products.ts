@@ -1,3 +1,4 @@
+import { z } from "zod";
 import {
   productListSchema,
   productSchema,
@@ -134,6 +135,107 @@ export async function getActiveProduct(
   } catch {
     return null;
   }
+}
+
+/* ---------------------------------------------------------- admin/superAdmin */
+
+export interface VariantPayload {
+  name: string;
+  sku: string;
+  price: number;
+  discountPrice?: number;
+  stock: number;
+  weight?: number;
+  images?: string[];
+  isAvailable?: boolean;
+  attributes?: Record<string, string>;
+}
+
+/** Every field `POST /products` accepts. `slug` is never generated server-side. */
+export interface ProductPayload {
+  name: string;
+  /** Must match `^[a-z0-9]+(?:-[a-z0-9]+)*$`. */
+  slug: string;
+  description: string;
+  /** Category ObjectId, not a slug. */
+  category: string;
+  tags?: string[];
+  thumbnail: string;
+  gallery?: string[];
+  variants: VariantPayload[];
+  status?: ProductStatus;
+  isFeatured?: boolean;
+  metaTitle?: string;
+  metaDescription?: string;
+}
+
+export async function createProduct(
+  token: string,
+  payload: ProductPayload,
+): Promise<Product> {
+  return requestData("/products", productSchema, {
+    method: "POST",
+    body: payload,
+    token,
+    revalidate: false,
+  });
+}
+
+export async function updateProduct(
+  token: string,
+  productId: string,
+  payload: Partial<ProductPayload>,
+): Promise<Product> {
+  return requestData(`/products/${encodeURIComponent(productId)}`, productSchema, {
+    method: "PATCH",
+    body: payload,
+    token,
+    revalidate: false,
+  });
+}
+
+export async function toggleProductFeatured(
+  token: string,
+  productId: string,
+): Promise<Product> {
+  return requestData(
+    `/products/${encodeURIComponent(productId)}/toggle-featured`,
+    productSchema,
+    { method: "PATCH", token, revalidate: false },
+  );
+}
+
+/** Every field `PATCH /products/:id/variants/:variantId` accepts — at least one required. */
+export interface UpdateVariantPayload {
+  price?: number;
+  discountPrice?: number | null;
+  stock?: number;
+  weight?: number;
+  images?: string[];
+  isAvailable?: boolean;
+  attributes?: Record<string, string>;
+}
+
+export async function updateVariant(
+  token: string,
+  productId: string,
+  variantId: string,
+  payload: UpdateVariantPayload,
+): Promise<Product> {
+  return requestData(
+    `/products/${encodeURIComponent(productId)}/variants/${encodeURIComponent(variantId)}`,
+    productSchema,
+    { method: "PATCH", body: payload, token, revalidate: false },
+  );
+}
+
+export async function deleteProduct(token: string, productId: string): Promise<void> {
+  // Response shape not load-bearing here — only that the call succeeds.
+  await requestData(`/products/${encodeURIComponent(productId)}`, z.unknown(), {
+    method: "DELETE",
+    token,
+    revalidate: false,
+  });
 }
 
 /**

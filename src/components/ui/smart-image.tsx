@@ -25,6 +25,18 @@ interface SmartImageProps {
  * Always fills its parent, which must be `relative` and carry the aspect
  * ratio. Reserving the box in the parent is what keeps CLS at zero.
  */
+/**
+ * imgbb already serves a CDN-hosted, appropriately-sized image — routing it
+ * through Next's own optimizer too just adds a second upstream fetch that
+ * can time out (`upstream image response timed out`), especially when
+ * several of these render at once (a gallery, a variant's image grid).
+ * Skipping optimization for this one known-safe host sidesteps that
+ * failure mode entirely rather than working around a timeout symptom.
+ */
+function isPreOptimized(src: string): boolean {
+  return src.includes("i.ibb.co");
+}
+
 export function SmartImage({
   src,
   alt,
@@ -69,6 +81,7 @@ export function SmartImage({
       fill
       sizes={sizes}
       priority={priority}
+      unoptimized={isPreOptimized(src)}
       className={cn("object-cover", className)}
       onError={() => setFailed(true)}
     />

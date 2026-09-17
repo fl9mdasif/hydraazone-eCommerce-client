@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Topbar } from "@/components/dashboard/topbar";
-import { ComingSoon } from "@/components/dashboard/coming-soon";
+import { CategoriesManagement } from "@/components/dashboard/categories-management";
 
 export const metadata: Metadata = {
   title: "Category management",
@@ -10,9 +10,9 @@ export const metadata: Metadata = {
 export default function AdminCategoriesPage() {
   return (
     <>
-      <Topbar title="Category management" />
+      <Topbar title="Categories" />
       <main className="flex-1 overflow-y-auto p-6">
-        <ComingSoon section="Category management" />
+        <CategoriesManagement />
       </main>
     </>
   );

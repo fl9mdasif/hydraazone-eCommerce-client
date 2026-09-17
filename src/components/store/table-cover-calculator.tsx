@@ -25,6 +25,7 @@ import {
 } from "@/lib/utils/table-cover";
 import { formatCurrency } from "@/lib/utils/format";
 import { useCart } from "@/lib/hooks/use-cart";
+import { useWishlist } from "@/lib/hooks/use-wishlist";
 import { useWishlistStore } from "@/stores/wishlist";
 import { SmartImage } from "@/components/ui/smart-image";
 import { Badge, StarRating } from "@/components/ui/layout-primitives";
@@ -97,7 +98,7 @@ export function TableCoverCalculator({
   const wishlisted = useWishlistStore((state) =>
     state.productIds.includes(product._id),
   );
-  const toggleWishlist = useWishlistStore((state) => state.toggle);
+  const { toggle: toggleWishlist } = useWishlist();
 
   const [lengthInput, setLengthInput] = useState("");
   const [widthInput, setWidthInput] = useState("");
@@ -583,9 +584,13 @@ export function TableCoverCalculator({
         {/* ------------------------------------------------------- details */}
         <div className="flex flex-col gap-3 border-t border-line pt-5">
           <h2 className="text-sm font-medium text-ink">Product Details</h2>
-          <p className="whitespace-pre-line text-sm leading-relaxed text-ink-secondary">
-            {product.description}
-          </p>
+          {/* `description` is rich text (HTML) from the admin's
+              RichTextEditor — admin-authored, same trust boundary as any
+              CMS description field. */}
+          <div
+            className="text-sm leading-relaxed text-ink-secondary [&_a]:text-accent [&_a]:underline [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5"
+            dangerouslySetInnerHTML={{ __html: product.description }}
+          />
 
           <ul className="mt-1 flex flex-col gap-2">
             {DETAIL_BULLETS.map((bullet) => (

@@ -8,6 +8,7 @@ import { useWishlistStore } from "@/stores/wishlist";
 import * as authApi from "@/lib/api/auth";
 import { isAdminRole, type AuthUser } from "@/lib/api/schemas/user";
 import { mergeGuestCartToServer } from "@/lib/hooks/use-cart";
+import { mergeGuestWishlistToServer } from "@/lib/hooks/use-wishlist";
 
 /**
  * The one place a session starts and ends.
@@ -38,6 +39,7 @@ export function useSession() {
     (nextUser: AuthUser, nextToken: string) => {
       setSessionRaw(nextUser, nextToken);
       void mergeGuestCartToServer(nextToken);
+      void mergeGuestWishlistToServer(nextToken);
     },
     [setSessionRaw],
   );

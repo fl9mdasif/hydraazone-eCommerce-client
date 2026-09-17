@@ -140,3 +140,28 @@ export const ORDER_STATUS_LABEL: Record<OrderStatus, string> = {
   cancelled: "Cancelled",
   returned: "Returned",
 };
+
+/** Every value `PATCH /orders/:id/status` accepts, in the order the admin flow moves through. */
+export const ORDER_STATUS_OPTIONS: OrderStatus[] = [
+  "pending",
+  "confirmed",
+  "processing",
+  "shipped",
+  "delivered",
+  "cancelled",
+  "returned",
+];
+
+export const PAYMENT_STATUS_LABEL: Record<PaymentStatus, string> = {
+  pending: "Pending",
+  paid: "Paid",
+  failed: "Failed",
+  refunded: "Refunded",
+};
+
+export const PAYMENT_STATUS_OPTIONS: PaymentStatus[] = [
+  "pending",
+  "paid",
+  "failed",
+  "refunded",
+];

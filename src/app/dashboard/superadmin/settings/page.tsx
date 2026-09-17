@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Topbar } from "@/components/dashboard/topbar";
-import { ComingSoon } from "@/components/dashboard/coming-soon";
+import { SettingsManagement } from "@/components/dashboard/settings-management";
 
 export const metadata: Metadata = {
   title: "Settings",
@@ -12,7 +12,7 @@ export default function SuperAdminSettingsPage() {
     <>
       <Topbar title="Settings" />
       <main className="flex-1 overflow-y-auto p-6">
-        <ComingSoon section="Settings" />
+        <SettingsManagement />
       </main>
     </>
   );
